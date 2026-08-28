@@ -264,3 +264,35 @@ export function LogOutIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function MoreVerticalIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <circle cx="10" cy="4.5" r="1.4" />
+      <circle cx="10" cy="10" r="1.4" />
+      <circle cx="10" cy="15.5" r="1.4" />
+    </svg>
+  );
+}
+
+export function FlagIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M4 14.5V2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M4 2.5H11.5L9.3 5L11.5 7.5H4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function ChatIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path
+        d="M3 10C3 6.13 6.13 3 10 3C13.87 3 17 6.13 17 10C17 13.87 13.87 17 10 17C8.7 17 7.47 16.65 6.42 16.03L3 17L3.97 13.58C3.35 12.53 3 11.3 3 10Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
