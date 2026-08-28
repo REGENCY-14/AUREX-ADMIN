@@ -4,6 +4,7 @@ import { useState } from "react";
 import { hoverScale } from "@/lib/motion";
 import { motion } from "framer-motion";
 import { UploadIcon } from "@/components/icons";
+import Select from "@/components/admin/Select";
 import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
 import type { Member } from "@/lib/members";
 
@@ -75,26 +76,26 @@ export default function InvestmentForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className={LABEL_CLASSNAME}>
           <span className={LABEL_TEXT_CLASSNAME}>Member</span>
-          <select value={values.memberId} onChange={(e) => set("memberId", e.target.value)} className={INPUT_CLASSNAME}>
-            <option value="">— Select an investor —</option>
-            {investors.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nickname}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={values.memberId}
+            onChange={(v) => set("memberId", v)}
+            options={[
+              { value: "", label: "— Select an investor —" },
+              ...investors.map((m) => ({ value: m.id, label: m.nickname })),
+            ]}
+          />
         </label>
 
         <label className={LABEL_CLASSNAME}>
           <span className={LABEL_TEXT_CLASSNAME}>Slot / Package</span>
-          <select value={values.slotId} onChange={(e) => set("slotId", e.target.value)} className={INPUT_CLASSNAME}>
-            <option value="">— Select an open slot —</option>
-            {openSlots.map((s) => (
-              <option key={s.id} value={s.id}>
-                {SLOT_PACKAGE_LABEL[s.package]} ({s.ratePercentLabel})
-              </option>
-            ))}
-          </select>
+          <Select
+            value={values.slotId}
+            onChange={(v) => set("slotId", v)}
+            options={[
+              { value: "", label: "— Select an open slot —" },
+              ...openSlots.map((s) => ({ value: s.id, label: `${SLOT_PACKAGE_LABEL[s.package]} (${s.ratePercentLabel})` })),
+            ]}
+          />
         </label>
 
         <label className={LABEL_CLASSNAME}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Select from "@/components/admin/Select";
 import type { ContentBlock, ContentBlockState } from "@/lib/homeContent";
 
 const INPUT_CLASSNAME =
@@ -50,10 +51,14 @@ export default function ContentForm({
 
       <label className={LABEL_CLASSNAME}>
         <span className={LABEL_TEXT_CLASSNAME}>State</span>
-        <select value={values.state} onChange={(e) => set("state", e.target.value as ContentBlockState)} className={INPUT_CLASSNAME}>
-          <option value="draft">Draft (not shown on the public site)</option>
-          <option value="published">Published</option>
-        </select>
+        <Select
+          value={values.state}
+          onChange={(v) => set("state", v as ContentBlockState)}
+          options={[
+            { value: "draft", label: "Draft (not shown on the public site)" },
+            { value: "published", label: "Published" },
+          ]}
+        />
       </label>
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-grid-line pt-4">

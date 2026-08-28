@@ -7,6 +7,7 @@ import { formatGhs } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
+import Select from "@/components/admin/Select";
 import { DANGER_ROW_CLASSNAME, iconButtonClassName } from "@/components/admin/tableStyles";
 import { PencilIcon } from "@/components/icons";
 import Modal from "@/components/admin/Modal";
@@ -72,19 +73,18 @@ export default function ListingsView({
       )}
 
       <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
-        <select
+        <Select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as ListingStatus | "all")}
-          className="border border-grid-line bg-panel/60 px-3 py-2 font-sans text-sm text-cream focus:border-gold/50 focus:outline-none"
-          aria-label="Filter by status"
-        >
-          <option value="all">All Statuses</option>
-          {(Object.keys(LISTING_STATUS_LABEL) as ListingStatus[]).map((status) => (
-            <option key={status} value={status}>
-              {LISTING_STATUS_LABEL[status]}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setStatusFilter(v as ListingStatus | "all")}
+          options={[
+            { value: "all", label: "All Statuses" },
+            ...(Object.keys(LISTING_STATUS_LABEL) as ListingStatus[]).map((status) => ({
+              value: status,
+              label: LISTING_STATUS_LABEL[status],
+            })),
+          ]}
+          ariaLabel="Filter by status"
+        />
         <span className="font-sans text-xs text-cream-dim">
           {filtered.length} of {listings.length}
         </span>

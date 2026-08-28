@@ -7,6 +7,7 @@ import { formatGhs, formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
+import Select from "@/components/admin/Select";
 import { DANGER_ROW_CLASSNAME, iconButtonClassName } from "@/components/admin/tableStyles";
 import Modal from "@/components/admin/Modal";
 import SlotForm, { type SlotFormValues } from "@/components/admin/slots/SlotForm";
@@ -147,17 +148,17 @@ export default function SlotsView({
       )}
 
       <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
-        <select
+        <Select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as SlotStatus | "all")}
-          className="border border-grid-line bg-panel/60 px-3 py-2 font-sans text-sm text-cream focus:border-gold/50 focus:outline-none"
-          aria-label="Filter by status"
-        >
-          <option value="all">All Statuses</option>
-          <option value="draft">Draft</option>
-          <option value="open">Open</option>
-          <option value="closed">Closed</option>
-        </select>
+          onChange={(v) => setStatusFilter(v as SlotStatus | "all")}
+          options={[
+            { value: "all", label: "All Statuses" },
+            { value: "draft", label: "Draft" },
+            { value: "open", label: "Open" },
+            { value: "closed", label: "Closed" },
+          ]}
+          ariaLabel="Filter by status"
+        />
         <span className="font-sans text-xs text-cream-dim">
           {filtered.length} of {slots.length}
         </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Select from "@/components/admin/Select";
 import type { BusinessListing, ListingStatus } from "@/lib/businessListings";
 import { LISTING_STATUS_LABEL } from "@/lib/businessListings";
 
@@ -73,13 +74,14 @@ export default function ListingForm({
 
       <label className={LABEL_CLASSNAME}>
         <span className={LABEL_TEXT_CLASSNAME}>Status</span>
-        <select value={values.status} onChange={(e) => set("status", e.target.value as ListingStatus)} className={INPUT_CLASSNAME}>
-          {(Object.keys(LISTING_STATUS_LABEL) as ListingStatus[]).map((status) => (
-            <option key={status} value={status}>
-              {LISTING_STATUS_LABEL[status]}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={values.status}
+          onChange={(v) => set("status", v as ListingStatus)}
+          options={(Object.keys(LISTING_STATUS_LABEL) as ListingStatus[]).map((status) => ({
+            value: status,
+            label: LISTING_STATUS_LABEL[status],
+          }))}
+        />
       </label>
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-grid-line pt-4">

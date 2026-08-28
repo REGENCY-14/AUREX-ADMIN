@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Select from "@/components/admin/Select";
 import type { BusinessListing } from "@/lib/businessListings";
 import type { InvestmentSlot, SlotPackage } from "@/lib/investmentSlots";
 
@@ -66,27 +67,27 @@ export default function SlotForm({
     <form className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
       <label className={LABEL_CLASSNAME}>
         <span className={LABEL_TEXT_CLASSNAME}>Package Type</span>
-        <select value={values.package} onChange={(e) => set("package", e.target.value as SlotPackage)} className={INPUT_CLASSNAME}>
-          <option value="core">AUREX Core</option>
-          <option value="ventures">AUREX Ventures</option>
-        </select>
+        <Select
+          value={values.package}
+          onChange={(v) => set("package", v as SlotPackage)}
+          options={[
+            { value: "core", label: "AUREX Core" },
+            { value: "ventures", label: "AUREX Ventures" },
+          ]}
+        />
       </label>
 
       {values.package === "ventures" && (
         <label className={LABEL_CLASSNAME}>
           <span className={LABEL_TEXT_CLASSNAME}>Linked Business (approved listings only)</span>
-          <select
+          <Select
             value={values.businessListingId}
-            onChange={(e) => set("businessListingId", e.target.value)}
-            className={INPUT_CLASSNAME}
-          >
-            <option value="">— Select a business —</option>
-            {approvedListings.map((listing) => (
-              <option key={listing.id} value={listing.id}>
-                {listing.businessName}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => set("businessListingId", v)}
+            options={[
+              { value: "", label: "— Select a business —" },
+              ...approvedListings.map((listing) => ({ value: listing.id, label: listing.businessName })),
+            ]}
+          />
         </label>
       )}
 

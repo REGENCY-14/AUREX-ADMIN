@@ -8,6 +8,7 @@ import { formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
+import Select from "@/components/admin/Select";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME } from "@/components/admin/tableStyles";
 import { ArrowUpIcon, ArrowDownIcon } from "@/components/icons";
 import type { Application, ApplicationStatus, ApplicationTrack } from "@/lib/applications";
@@ -29,8 +30,18 @@ const TRACK_LABEL: Record<ApplicationTrack, string> = {
   business: "Business Owner",
 };
 
-const SELECT_CLASSNAME =
-  "border border-grid-line bg-panel/60 px-3 py-2 font-sans text-sm text-cream focus:border-gold/50 focus:outline-none";
+const TRACK_OPTIONS = [
+  { value: "all", label: "All Tracks" },
+  { value: "investor", label: "Investor" },
+  { value: "business", label: "Business Owner" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "All Statuses" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
 
 /**
  * The Application Review Queue list. Filter/sort state lives here (client
@@ -71,28 +82,19 @@ export default function ApplicationsView({
       <PageHeader title="Application Review Queue" description="Review and decide on investor and business owner applications." />
 
       <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
-        <select
+        <Select
           value={trackFilter}
-          onChange={(e) => setTrackFilter(e.target.value as ApplicationTrack | "all")}
-          className={SELECT_CLASSNAME}
-          aria-label="Filter by track"
-        >
-          <option value="all">All Tracks</option>
-          <option value="investor">Investor</option>
-          <option value="business">Business Owner</option>
-        </select>
+          onChange={(v) => setTrackFilter(v as ApplicationTrack | "all")}
+          options={TRACK_OPTIONS}
+          ariaLabel="Filter by track"
+        />
 
-        <select
+        <Select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | "all")}
-          className={SELECT_CLASSNAME}
-          aria-label="Filter by status"
-        >
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
+          onChange={(v) => setStatusFilter(v as ApplicationStatus | "all")}
+          options={STATUS_OPTIONS}
+          ariaLabel="Filter by status"
+        />
 
         <button
           type="button"
