@@ -31,6 +31,17 @@ const TONE_ICON: Record<BadgeTone, ReactNode> = {
   danger: <XIcon className="size-3" />,
 };
 
+// The same four hues as raw CSS color values (not Tailwind classes) —
+// shared with StatusDot, the dot-plus-text table variant of this same
+// tone system, since a dot's fill/glow needs a real color to put in an
+// inline style.
+export const TONE_COLOR: Record<BadgeTone, string> = {
+  neutral: "var(--color-cream-dim)",
+  gold: "var(--color-gold-bright)",
+  success: "#4ade80",
+  danger: "#f87171",
+};
+
 export default function StatusBadge({ label, tone }: { label: string; tone: BadgeTone }) {
   return (
     <span

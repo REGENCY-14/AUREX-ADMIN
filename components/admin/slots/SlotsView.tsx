@@ -5,10 +5,12 @@ import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/motion";
 import { formatGhs, formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
-import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
+import { type BadgeTone } from "@/components/admin/StatusBadge";
+import StatusDot from "@/components/admin/StatusDot";
+import { DANGER_ROW_CLASSNAME, iconButtonClassName } from "@/components/admin/tableStyles";
 import Modal from "@/components/admin/Modal";
 import SlotForm, { type SlotFormValues } from "@/components/admin/slots/SlotForm";
-import { PlusIcon } from "@/components/icons";
+import { PencilIcon, PlusIcon } from "@/components/icons";
 import {
   SLOT_PACKAGE_LABEL,
   SLOT_STATUS_LABEL,
@@ -177,7 +179,13 @@ export default function SlotsView({
             {filtered.map((slot) => {
               const listing = slot.businessListingId ? listingsById[slot.businessListingId] : undefined;
               return (
-                <motion.tr key={slot.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
+                <motion.tr
+                  key={slot.id}
+                  {...hoverLift}
+                  className={`border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
+                    slot.status === "closed" ? DANGER_ROW_CLASSNAME : ""
+                  }`}
+                >
                   <td className="px-4 py-3 font-jakarta text-sm font-medium text-cream">{SLOT_PACKAGE_LABEL[slot.package]}</td>
                   <td className="px-4 py-3 font-sans text-sm text-cream-dim">{listing?.businessName ?? "—"}</td>
                   <td className="px-4 py-3 font-sans text-sm text-cream-dim">
@@ -187,7 +195,7 @@ export default function SlotsView({
                     {slot.opensAt ? formatDisplayDate(slot.opensAt) : "—"} – {slot.closesAt ? formatDisplayDate(slot.closesAt) : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge label={SLOT_STATUS_LABEL[slot.status]} tone={STATUS_TONE[slot.status]} />
+                    <StatusDot label={SLOT_STATUS_LABEL[slot.status]} tone={STATUS_TONE[slot.status]} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -212,9 +220,10 @@ export default function SlotsView({
                       <button
                         type="button"
                         onClick={() => setModalSlot(slot)}
-                        className="border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+                        aria-label={`Edit ${SLOT_PACKAGE_LABEL[slot.package]} slot`}
+                        className={iconButtonClassName("neutral")}
                       >
-                        Edit
+                        <PencilIcon className="size-3.5" />
                       </button>
                     </div>
                   </td>
@@ -229,10 +238,16 @@ export default function SlotsView({
         {filtered.map((slot) => {
           const listing = slot.businessListingId ? listingsById[slot.businessListingId] : undefined;
           return (
-            <motion.div key={slot.id} {...hoverLift} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
+            <motion.div
+              key={slot.id}
+              {...hoverLift}
+              className={`flex flex-col gap-2 border border-grid-line bg-panel/20 p-4 ${
+                slot.status === "closed" ? DANGER_ROW_CLASSNAME : ""
+              }`}
+            >
               <div className="flex items-start justify-between gap-3">
                 <span className="font-jakarta text-sm font-semibold text-cream">{SLOT_PACKAGE_LABEL[slot.package]}</span>
-                <StatusBadge label={SLOT_STATUS_LABEL[slot.status]} tone={STATUS_TONE[slot.status]} />
+                <StatusDot label={SLOT_STATUS_LABEL[slot.status]} tone={STATUS_TONE[slot.status]} />
               </div>
               {listing && <span className="font-sans text-sm text-cream-dim">{listing.businessName}</span>}
               <span className="font-sans text-xs text-cream-dim">
@@ -261,9 +276,10 @@ export default function SlotsView({
                 <button
                   type="button"
                   onClick={() => setModalSlot(slot)}
-                  className="border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim"
+                  aria-label={`Edit ${SLOT_PACKAGE_LABEL[slot.package]} slot`}
+                  className={iconButtonClassName("neutral")}
                 >
-                  Edit
+                  <PencilIcon className="size-3.5" />
                 </button>
               </div>
             </motion.div>

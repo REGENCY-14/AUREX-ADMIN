@@ -5,7 +5,10 @@ import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift } from "@/lib/motion";
 import { formatGhs } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
-import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
+import { type BadgeTone } from "@/components/admin/StatusBadge";
+import StatusDot from "@/components/admin/StatusDot";
+import { DANGER_ROW_CLASSNAME, iconButtonClassName } from "@/components/admin/tableStyles";
+import { PencilIcon } from "@/components/icons";
 import Modal from "@/components/admin/Modal";
 import ListingForm, { type ListingFormValues } from "@/components/admin/listings/ListingForm";
 import { LISTING_STATUS_LABEL, getFundingPercent, type BusinessListing, type ListingStatus } from "@/lib/businessListings";
@@ -101,11 +104,17 @@ export default function ListingsView({
           </thead>
           <tbody>
             {filtered.map((listing) => (
-              <motion.tr key={listing.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
+              <motion.tr
+                key={listing.id}
+                {...hoverLift}
+                className={`border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
+                  listing.status === "closed" ? DANGER_ROW_CLASSNAME : ""
+                }`}
+              >
                 <td className="px-4 py-3 font-jakarta text-sm font-medium text-cream">{listing.businessName}</td>
                 <td className="px-4 py-3 font-sans text-sm text-cream-dim">{listing.ownerNickname}</td>
                 <td className="px-4 py-3">
-                  <StatusBadge label={LISTING_STATUS_LABEL[listing.status]} tone={STATUS_TONE[listing.status]} />
+                  <StatusDot label={LISTING_STATUS_LABEL[listing.status]} tone={STATUS_TONE[listing.status]} />
                 </td>
                 <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatGhs(listing.fundingGoalGhs)}</td>
                 <td className="px-4 py-3 font-sans text-sm text-cream-dim">
@@ -115,9 +124,10 @@ export default function ListingsView({
                   <button
                     type="button"
                     onClick={() => setEditingListing(listing)}
-                    className="border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+                    aria-label={`Edit ${listing.businessName}`}
+                    className={iconButtonClassName("gold")}
                   >
-                    Edit
+                    <PencilIcon className="size-3.5" />
                   </button>
                 </td>
               </motion.tr>
@@ -128,10 +138,16 @@ export default function ListingsView({
 
       <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
         {filtered.map((listing) => (
-          <motion.div key={listing.id} {...hoverLift} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
+          <motion.div
+            key={listing.id}
+            {...hoverLift}
+            className={`flex flex-col gap-2 border border-grid-line bg-panel/20 p-4 ${
+              listing.status === "closed" ? DANGER_ROW_CLASSNAME : ""
+            }`}
+          >
             <div className="flex items-start justify-between gap-3">
               <span className="font-jakarta text-sm font-semibold text-cream">{listing.businessName}</span>
-              <StatusBadge label={LISTING_STATUS_LABEL[listing.status]} tone={STATUS_TONE[listing.status]} />
+              <StatusDot label={LISTING_STATUS_LABEL[listing.status]} tone={STATUS_TONE[listing.status]} />
             </div>
             <span className="font-sans text-sm text-cream-dim">{listing.ownerNickname}</span>
             <span className="font-sans text-xs text-cream-dim">
@@ -140,9 +156,10 @@ export default function ListingsView({
             <button
               type="button"
               onClick={() => setEditingListing(listing)}
-              className="mt-1 w-fit border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim"
+              aria-label={`Edit ${listing.businessName}`}
+              className={`mt-1 ${iconButtonClassName("gold")}`}
             >
-              Edit
+              <PencilIcon className="size-3.5" />
             </button>
           </motion.div>
         ))}

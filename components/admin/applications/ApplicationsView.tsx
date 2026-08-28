@@ -6,7 +6,9 @@ import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift } from "@/lib/motion";
 import { formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
-import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
+import { type BadgeTone } from "@/components/admin/StatusBadge";
+import StatusDot from "@/components/admin/StatusDot";
+import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME } from "@/components/admin/tableStyles";
 import { ArrowUpIcon, ArrowDownIcon } from "@/components/icons";
 import type { Application, ApplicationStatus, ApplicationTrack } from "@/lib/applications";
 
@@ -127,17 +129,24 @@ export default function ApplicationsView({
               </thead>
               <tbody>
                 {filtered.map((application) => (
-                  <motion.tr key={application.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
+                  <motion.tr
+                    key={application.id}
+                    {...hoverLift}
+                    className={`border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
+                      application.status === "rejected" ? DANGER_ROW_CLASSNAME : ""
+                    }`}
+                  >
                     <td className="p-0">
-                      <Link href={`/applications/${application.id}`} className="flex px-4 py-3 font-jakarta text-sm font-medium text-cream">
-                        {application.nickname}
+                      <Link href={`/applications/${application.id}`} className="flex items-center gap-3 px-4 py-3">
+                        <span className={AVATAR_CLASSNAME}>{application.nickname.slice(0, 2).toUpperCase()}</span>
+                        <span className="font-jakarta text-sm font-medium text-cream">{application.nickname}</span>
                       </Link>
                     </td>
                     <td className="px-4 py-3 font-sans text-sm text-cream-dim">{application.realName}</td>
                     <td className="px-4 py-3 font-sans text-sm text-cream-dim">{TRACK_LABEL[application.track]}</td>
                     <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatDisplayDate(application.submittedAt)}</td>
                     <td className="px-4 py-3">
-                      <StatusBadge label={STATUS_LABEL[application.status]} tone={STATUS_TONE[application.status]} />
+                      <StatusDot label={STATUS_LABEL[application.status]} tone={STATUS_TONE[application.status]} />
                     </td>
                   </motion.tr>
                 ))}
@@ -150,11 +159,16 @@ export default function ApplicationsView({
               <motion.div key={application.id} {...hoverLift}>
                 <Link
                   href={`/applications/${application.id}`}
-                  className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4"
+                  className={`flex flex-col gap-2 border border-grid-line bg-panel/20 p-4 ${
+                    application.status === "rejected" ? DANGER_ROW_CLASSNAME : ""
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="font-jakarta text-sm font-semibold text-cream">{application.nickname}</span>
-                    <StatusBadge label={STATUS_LABEL[application.status]} tone={STATUS_TONE[application.status]} />
+                    <div className="flex items-center gap-3">
+                      <span className={AVATAR_CLASSNAME}>{application.nickname.slice(0, 2).toUpperCase()}</span>
+                      <span className="font-jakarta text-sm font-semibold text-cream">{application.nickname}</span>
+                    </div>
+                    <StatusDot label={STATUS_LABEL[application.status]} tone={STATUS_TONE[application.status]} />
                   </div>
                   <span className="font-sans text-sm text-cream-dim">{application.realName}</span>
                   <div className="flex items-center justify-between gap-3 text-xs text-cream-dim">

@@ -6,7 +6,9 @@ import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift } from "@/lib/motion";
 import { formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
-import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
+import { type BadgeTone } from "@/components/admin/StatusBadge";
+import StatusDot from "@/components/admin/StatusDot";
+import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME } from "@/components/admin/tableStyles";
 import { SearchIcon } from "@/components/icons";
 import type { Member, MemberStatus, MemberTrack } from "@/lib/members";
 
@@ -70,17 +72,24 @@ export default function MembersView({ members }: { members: Member[] }) {
               </thead>
               <tbody>
                 {filtered.map((member) => (
-                  <motion.tr key={member.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
+                  <motion.tr
+                    key={member.id}
+                    {...hoverLift}
+                    className={`border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
+                      member.status === "suspended" ? DANGER_ROW_CLASSNAME : ""
+                    }`}
+                  >
                     <td className="p-0">
-                      <Link href={`/members/${member.id}`} className="flex px-4 py-3 font-jakarta text-sm font-medium text-cream">
-                        {member.nickname}
+                      <Link href={`/members/${member.id}`} className="flex items-center gap-3 px-4 py-3">
+                        <span className={AVATAR_CLASSNAME}>{member.nickname.slice(0, 2).toUpperCase()}</span>
+                        <span className="font-jakarta text-sm font-medium text-cream">{member.nickname}</span>
                       </Link>
                     </td>
                     <td className="px-4 py-3 font-sans text-sm text-cream-dim">{member.realName}</td>
                     <td className="px-4 py-3 font-sans text-sm text-cream-dim">{TRACK_LABEL[member.track]}</td>
                     <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatDisplayDate(member.joinDate)}</td>
                     <td className="px-4 py-3">
-                      <StatusBadge label={member.status === "active" ? "Active" : "Suspended"} tone={STATUS_TONE[member.status]} />
+                      <StatusDot label={member.status === "active" ? "Active" : "Suspended"} tone={STATUS_TONE[member.status]} />
                     </td>
                   </motion.tr>
                 ))}
@@ -91,10 +100,18 @@ export default function MembersView({ members }: { members: Member[] }) {
           <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
             {filtered.map((member) => (
               <motion.div key={member.id} {...hoverLift}>
-                <Link href={`/members/${member.id}`} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
+                <Link
+                  href={`/members/${member.id}`}
+                  className={`flex flex-col gap-2 border border-grid-line bg-panel/20 p-4 ${
+                    member.status === "suspended" ? DANGER_ROW_CLASSNAME : ""
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="font-jakarta text-sm font-semibold text-cream">{member.nickname}</span>
-                    <StatusBadge label={member.status === "active" ? "Active" : "Suspended"} tone={STATUS_TONE[member.status]} />
+                    <div className="flex items-center gap-3">
+                      <span className={AVATAR_CLASSNAME}>{member.nickname.slice(0, 2).toUpperCase()}</span>
+                      <span className="font-jakarta text-sm font-semibold text-cream">{member.nickname}</span>
+                    </div>
+                    <StatusDot label={member.status === "active" ? "Active" : "Suspended"} tone={STATUS_TONE[member.status]} />
                   </div>
                   <span className="font-sans text-sm text-cream-dim">{member.realName}</span>
                   <div className="flex items-center justify-between gap-3 text-xs text-cream-dim">
