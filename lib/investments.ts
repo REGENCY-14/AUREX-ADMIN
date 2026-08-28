@@ -113,3 +113,28 @@ export function getTotalInvestedByMember(memberId: string): number {
 export function getTotalPlatformInvested(): number {
   return INVESTMENT_RECORDS.reduce((sum, r) => sum + r.amountInvestedGhs, 0);
 }
+
+export type MonthlyInvestedPoint = { label: string; cumulativeGhs: number };
+
+/** Total amount invested, running cumulative by month — the Overview
+ *  trend chart's data. Cumulative (not "invested that month" alone)
+ *  since the reader's real question is "how big has the book gotten",
+ *  the same number the "Total Invested" stat tile already answers for
+ *  right now; this just shows how it got there. */
+export function getMonthlyInvestedTrend(): MonthlyInvestedPoint[] {
+  const byMonth = new Map<string, number>();
+  for (const record of INVESTMENT_RECORDS) {
+    const [year, month] = record.dateInvested.split("-");
+    const key = `${year}-${month}`;
+    byMonth.set(key, (byMonth.get(key) ?? 0) + record.amountInvestedGhs);
+  }
+
+  const sortedKeys = [...byMonth.keys()].sort();
+  let running = 0;
+  return sortedKeys.map((key) => {
+    running += byMonth.get(key) ?? 0;
+    const [year, month] = key.split("-").map(Number);
+    const label = new Date(year, month - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+    return { label, cumulativeGhs: running };
+  });
+}
