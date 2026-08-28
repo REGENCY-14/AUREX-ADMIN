@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import OverviewView from "@/components/admin/overview/OverviewView";
 import { getApplications, getPendingApplicationCount } from "@/lib/applications";
 import { getMembers } from "@/lib/members";
-import { getTotalPlatformInvested, getMonthlyInvestedTrend } from "@/lib/investments";
+import { getMonthlyInvestedTrend, getInvestedByPackage } from "@/lib/investments";
 import { getInvestmentSlots } from "@/lib/investmentSlots";
 import { getBusinessListings } from "@/lib/businessListings";
 
@@ -15,6 +15,10 @@ export const metadata: Metadata = {
  * same mock lib/*.ts data every other admin page reads — nothing here is
  * its own separate source of truth, so it can't silently drift from what
  * the Applications/Members/Slots/Listings pages themselves show.
+ *
+ * No `totalInvestedGhs` stat computed here anymore — the trend chart's
+ * own always-visible endpoint label already carries that figure, so
+ * OverviewView no longer takes it as a separate prop.
  */
 export default function OverviewPage() {
   const members = getMembers();
@@ -24,7 +28,6 @@ export default function OverviewPage() {
     pendingApplications: getPendingApplicationCount(),
     investorCount: members.filter((m) => m.track === "investor").length,
     businessOwnerCount: members.filter((m) => m.track === "business").length,
-    totalInvestedGhs: getTotalPlatformInvested(),
     openSlotCount: getInvestmentSlots().filter((s) => s.status === "open").length,
     liveListingCount: getBusinessListings().filter((l) => l.status === "live").length,
   };
@@ -40,7 +43,7 @@ export default function OverviewPage() {
       stats={stats}
       investedTrend={getMonthlyInvestedTrend()}
       applicationStatusCounts={applicationStatusCounts}
-      listings={getBusinessListings()}
+      packageAllocation={getInvestedByPackage()}
     />
   );
 }

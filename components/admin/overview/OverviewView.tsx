@@ -6,16 +6,13 @@ import PageHeader from "@/components/admin/PageHeader";
 import StatCard from "@/components/admin/StatCard";
 import TrendChart from "@/components/admin/overview/charts/TrendChart";
 import SegmentedBar from "@/components/admin/overview/charts/SegmentedBar";
-import FundingMeterList from "@/components/admin/overview/charts/FundingMeterList";
-import { formatGhs } from "@/lib/formatters";
-import type { MonthlyInvestedPoint } from "@/lib/investments";
-import type { BusinessListing } from "@/lib/businessListings";
+import PackagePieChart from "@/components/admin/overview/charts/PackagePieChart";
+import type { MonthlyInvestedPoint, PackageAllocation } from "@/lib/investments";
 
 export type OverviewStats = {
   pendingApplications: number;
   investorCount: number;
   businessOwnerCount: number;
-  totalInvestedGhs: number;
   openSlotCount: number;
   liveListingCount: number;
 };
@@ -23,31 +20,40 @@ export type OverviewStats = {
 export type ApplicationStatusCounts = { pending: number; approved: number; rejected: number };
 
 /**
- * The Admin landing page: at-a-glance stat tiles (each linking into its
- * own section, per the brief) plus four charts giving the same numbers
- * some shape — a cumulative invested-over-time trend, an applications-
- * by-status breakdown, a members-by-track split, and per-listing funding
- * meters. `staggerContainer`/`staggerItem` for the tiles (same shared-
- * variant convention as the main site's own list sections); the charts
- * section below uses `scrollReveal` instead, per the brief's own
- * guidance for a page that's grown long enough to benefit from content
- * revealing as you scroll rather than all animating in at once on load.
+ * The Admin landing page. Two rows below the header, each pairing a
+ * "main" element with supporting detail beside it:
  *
- * See the dataviz skill's own reasoning (in each chart component) for
- * why the color choices are what they are — this brand has one real hue
- * (gold) plus its already-established green/red status pair, not an
- * invented multi-hue categorical palette.
+ *   1. The four stat tiles (no "Total Invested" tile — the trend chart
+ *      below already answers that, as its own always-visible endpoint
+ *      label, so the number isn't dropped, just not duplicated) beside
+ *      the package-allocation pie chart.
+ *   2. The invested-over-time trend chart beside the applications-by-
+ *      status and members-by-track breakdowns, stacked in a column.
+ *
+ * No "Funding Progress by Listing" here anymore — the Business Listings
+ * page itself already shows raised/goal per listing; this page stays
+ * about platform-wide shape (where members come from, where money goes),
+ * not a duplicate of that list.
+ *
+ * `staggerContainer`/`staggerItem` for the header + stat tiles (same
+ * shared-variant convention as the main site's own list sections);
+ * `scrollReveal` for the two chart rows below, per the brief's own
+ * guidance for a page long enough to benefit from content revealing as
+ * you scroll. See the dataviz skill's own reasoning (in each chart
+ * component) for why the color choices are what they are — this brand
+ * has one real hue (gold) plus its already-established green/red status
+ * pair, not an invented multi-hue categorical palette.
  */
 export default function OverviewView({
   stats,
   investedTrend,
   applicationStatusCounts,
-  listings,
+  packageAllocation,
 }: {
   stats: OverviewStats;
   investedTrend: MonthlyInvestedPoint[];
   applicationStatusCounts: ApplicationStatusCounts;
-  listings: BusinessListing[];
+  packageAllocation: PackageAllocation;
 }) {
   const totalMembers = stats.investorCount + stats.businessOwnerCount;
 
@@ -60,47 +66,52 @@ export default function OverviewView({
     >
       <PageHeader title="Overview" description="A snapshot of the AUREX platform right now." />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard
-          label="Pending Applications"
-          value={String(stats.pendingApplications)}
-          href="/applications?status=pending"
-          sublabel="Awaiting review"
-        />
-        <StatCard
-          label="Registered Members"
-          value={String(totalMembers)}
-          href="/members"
-          sublabel={`${stats.investorCount} Investors · ${stats.businessOwnerCount} Business Owners`}
-        />
-        <StatCard
-          label="Total Invested"
-          value={formatGhs(stats.totalInvestedGhs)}
-          href="/investments"
-          sublabel="Platform-wide"
-        />
-        <StatCard
-          label="Open Investment Slots"
-          value={String(stats.openSlotCount)}
-          href="/slots?status=open"
-          sublabel="Currently accepting investment"
-        />
-        <StatCard
-          label="Live Business Listings"
-          value={String(stats.liveListingCount)}
-          href="/listings?status=live"
-          sublabel="Raising funds now"
-        />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <StatCard
+            label="Pending Applications"
+            value={String(stats.pendingApplications)}
+            href="/applications?status=pending"
+            sublabel="Awaiting review"
+          />
+          <StatCard
+            label="Registered Members"
+            value={String(totalMembers)}
+            href="/members"
+            sublabel={`${stats.investorCount} Investors · ${stats.businessOwnerCount} Business Owners`}
+          />
+          <StatCard
+            label="Open Investment Slots"
+            value={String(stats.openSlotCount)}
+            href="/slots?status=open"
+            sublabel="Currently accepting investment"
+          />
+          <StatCard
+            label="Live Business Listings"
+            value={String(stats.liveListingCount)}
+            href="/listings?status=live"
+            sublabel="Raising funds now"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
+          <h2 className="font-jakarta text-lg font-semibold text-cream">Investment Allocation by Package</h2>
+          <p className="mb-2 font-sans text-sm text-cream-dim">
+            AUREX Core vs. AUREX Ventures, as a share of total amount invested — directly useful for seeing where
+            money is actually flowing.
+          </p>
+          <PackagePieChart allocation={packageAllocation} />
+        </div>
       </div>
 
-      <motion.div {...scrollReveal} className="flex flex-col gap-4">
+      <motion.div {...scrollReveal} className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
           <h2 className="font-jakarta text-lg font-semibold text-cream">Total Invested Over Time</h2>
           <p className="mb-3 font-sans text-sm text-cream-dim">Cumulative amount invested, platform-wide.</p>
           <TrendChart data={investedTrend} />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
             <h2 className="font-jakarta text-lg font-semibold text-cream">Applications by Status</h2>
             <p className="mb-3 font-sans text-sm text-cream-dim">Every application ever submitted.</p>
@@ -125,12 +136,6 @@ export default function OverviewView({
               ]}
             />
           </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
-          <h2 className="font-jakarta text-lg font-semibold text-cream">Funding Progress by Listing</h2>
-          <p className="mb-4 font-sans text-sm text-cream-dim">Every business listing, raised vs. goal.</p>
-          <FundingMeterList listings={listings} />
         </div>
       </motion.div>
     </motion.div>

@@ -11,6 +11,8 @@
  * site's own investor-holdings mock data uses.
  */
 
+import { getInvestmentSlotById } from "./investmentSlots";
+
 export type InvestmentRecord = {
   id: string;
   memberId: string;
@@ -112,6 +114,24 @@ export function getTotalInvestedByMember(memberId: string): number {
  *  "total amount invested" stat. */
 export function getTotalPlatformInvested(): number {
   return INVESTMENT_RECORDS.reduce((sum, r) => sum + r.amountInvestedGhs, 0);
+}
+
+export type PackageAllocation = { core: number; ventures: number };
+
+/** Total amount invested, split by package type (Core vs. Ventures) —
+ *  the Overview pie chart's data. Each record only knows its slotId, so
+ *  this joins against lib/investmentSlots.ts to find that slot's
+ *  package, same join InvestmentsView/MemberDetailView already do at
+ *  their own call sites — centralized here since the Overview page
+ *  needs the platform-wide total, not one member's or one slot's. */
+export function getInvestedByPackage(): PackageAllocation {
+  const allocation: PackageAllocation = { core: 0, ventures: 0 };
+  for (const record of INVESTMENT_RECORDS) {
+    const slot = getInvestmentSlotById(record.slotId);
+    if (!slot) continue;
+    allocation[slot.package] += record.amountInvestedGhs;
+  }
+  return allocation;
 }
 
 export type MonthlyInvestedPoint = { label: string; cumulativeGhs: number };
