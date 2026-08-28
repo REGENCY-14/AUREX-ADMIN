@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* Design tokens imported 1:1 from the main AUREX site (see that repo's
+   app/globals.css) so both apps share one palette/font system. The
+   `light:` variant and [data-theme="light"] block below are reproduced for
+   fidelity with the source file, but this admin app doesn't wire up a
+   theme toggle (lib/theme.ts / ThemeToggle.tsx) — it's an internal tool,
+   always dark, same as every :root default below. */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
+:root {
+  /* AUREX brand palette — sourced 1:1 from the Figma design tokens.
+     `--amainblack` keeps the exact variable name used in the design file. */
+  --amainblack: #1a1a1a;
+
+  /* Lightened per feedback: still black, just not as deep as the original
+     #050402/#0d0d0d. The latest Figma export's own root background is
+     literally #1a1a1a (== --amainblack), so ink now matches that exactly. */
+  --color-ink: #1a1a1a;
+  --color-ink-light: #241f18;
+  --color-panel: #16130b;
+  --color-umber: #3a3433;
+  /* Neutral grid-line gray introduced in this revision — used only for the
+     section-divider borders (About/Packages/Testimonials/CTA), never mixed
+     with the gold-bordered glass cards. */
+  --color-grid-line: #262626;
+
+  /* Sampled directly from the actual logo artwork (public/brand/logo-mark
+     .png's icon, across its highlight-to-shadow gradient) rather than
+     picked by eye — per feedback that the previous values (#d4af37 etc.)
+     read as too bright/yellow to be "gold". These sit a little further
+     toward amber/bronze: slightly less green, slightly more blue, so the
+     same roles (base/light/bright/deep/muted) now track the logo's own
+     metal instead of a generic gold-yellow. */
+  --color-gold: #d5a84e;
+  --color-gold-light: #e4b95b;
+  --color-gold-bright: #f4cf70;
+  --color-gold-deep: #c7953f;
+  --color-gold-muted: #ce9f47;
+  --color-gold-brown: #3c2f00;
+
+  --color-cream: #eae1d4;
+  --color-cream-dim: #d0c5af;
+  --color-graphite: #5f5e5e;
+
+  --background: var(--color-ink);
+  --foreground: var(--color-cream);
+
+  /* Without this, the browser has no idea this page is dark by default and
+     renders native form-control chrome (most visibly: a <select>'s own
+     option-list popup) using its own light-UI default — light/white popup
+     background under our light `text-cream` option text, which reads as
+     "invisible" (very low contrast) rather than just off-brand. This makes
+     every native popup (selects, plus scrollbars/etc.) use dark system
+     chrome by default; the light theme below flips it back. */
+  color-scheme: dark;
+}
+
+/* Light theme — per Figma node 37:2570. Only the tokens that are meant to
+   flip page-wide are redefined here: the page background, card surfaces,
+   section-divider borders, and body/heading text. Everything else is left
+   alone on purpose:
+   - --amainblack, the gold family, and --color-umber are theme-neutral
+     brand accents already tuned to work on both light and dark surfaces.
+   - --color-ink-light and --color-graphite are deliberately NOT flipped —
+     they back the few surfaces the source design keeps dark even in light
+     mode (the Hero "vault" visual, its stat overlays, the CTA info box),
+     matching Figma rather than inverting them too.
+   A handful of one-off spots that don't route through these tokens at all
+   (e.g. Tailwind's neutral-*, a couple of hardcoded hex values) get their
+   own `light:` override directly in the component instead. */
+[data-theme="light"] {
+  --color-ink: #fbfbf9;
+  --color-panel: #ffffff;
+  --color-grid-line: #d9d9d9;
+  --color-cream: #1a1a1a;
+  --color-cream-dim: #5f5e5e;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-amainblack: var(--amainblack);
+  --color-ink: var(--color-ink);
+  --color-ink-light: var(--color-ink-light);
+  --color-panel: var(--color-panel);
+  --color-umber: var(--color-umber);
+  --color-grid-line: var(--color-grid-line);
+
+  --color-gold: var(--color-gold);
+  --color-gold-light: var(--color-gold-light);
+  --color-gold-bright: var(--color-gold-bright);
+  --color-gold-deep: var(--color-gold-deep);
+  --color-gold-muted: var(--color-gold-muted);
+  --color-gold-brown: var(--color-gold-brown);
+
+  --color-cream: var(--color-cream);
+  --color-cream-dim: var(--color-cream-dim);
+  --color-graphite: var(--color-graphite);
+
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+  --font-jakarta: var(--font-plus-jakarta-sans);
+  --font-dm: var(--font-dm-sans);
+  --font-manrope: var(--font-manrope);
+  --font-geist: var(--font-geist-sans);
+  --font-barlow: var(--font-barlow);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Hides the scrollbar on an otherwise-scrollable element (e.g. the
+   testimonials mobile carousel) without disabling scrolling itself —
+   Tailwind v4 has no built-in utility for this. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
