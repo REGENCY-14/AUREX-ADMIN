@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTheme } from "@/lib/theme";
+import { useSidebarCollapsed } from "@/lib/sidebarState";
 import { getPendingApplicationCount } from "@/lib/applications";
 import { getOpenReportCount } from "@/lib/reports";
 import {
@@ -47,18 +47,27 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+// The full "AUREX" lockup (icon + wordmark baked into one image, from
+// Figma), one export per theme — a real light/dark pair rather than the
+// old single icon-only mark reused unchanged in both themes. Each export
+// carries its own natural pixel size (they aren't identical aspect
+// ratios) so the <Image> below can be given real width/height and scaled
+// by CSS height alone, keeping it undistorted.
+const LOGO = {
+  light: { src: "/brand/logo-lockup-light.png", width: 68, height: 48 },
+  dark: { src: "/brand/logo-lockup-dark.png", width: 68, height: 51 },
+} as const;
+
 /**
  * Swapped in below `md` (phone-width screens) instead of the real shell
  * — see AdminShell's own doc comment for why. Deliberately minimal: no
  * nav, no actions, nothing for a phone user to reach for, just the brand
  * mark and a plain explanation of what to do instead.
  */
-function UnsupportedViewport({ logoSrc }: { logoSrc: string }) {
+function UnsupportedViewport({ logo }: { logo: (typeof LOGO)[keyof typeof LOGO] }) {
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center gap-4 px-6 py-12 text-center md:hidden">
-      <div className="relative size-10 shrink-0 overflow-hidden">
-        <Image src={logoSrc} alt="" fill sizes="40px" className="object-cover" />
-      </div>
+      <Image src={logo.src} alt="AUREX" width={logo.width} height={logo.height} className="h-10 w-auto shrink-0" />
       <AlertIcon className="size-7 text-gold-bright" />
       <h1 className="font-jakarta text-lg font-semibold text-cream">Tablet or Larger Required</h1>
       <p className="max-w-xs font-sans text-sm text-cream-dim">
@@ -80,10 +89,14 @@ function UnsupportedViewport({ logoSrc }: { logoSrc: string }) {
  * variant is redundant per feedback and dropped rather than kept
  * alongside it.
  *
- * The collapse toggle is plain useState, not persisted: this app's admin
- * pages otherwise hold no client storage (see lib/theme.ts's own comment
- * on why theme is the one scoped exception), so the rail resets to
- * expanded on reload rather than adding a second persisted preference.
+ * The collapse toggle's state lives in lib/sidebarState.ts, not a plain
+ * useState here — per feedback, it needs to stay collapsed across a
+ * route change, but PageTransition (components/PageTransition.tsx) keys
+ * its wrapper on the pathname, which remounts this whole shell on every
+ * navigation. A useState would reset on each of those; the module-level
+ * store lib/sidebarState.ts uses (same reasoning as lib/theme.ts) does
+ * not. Still not synced to localStorage, so a real page reload starts
+ * expanded — the ask was "survives navigating", not "survives a reload".
  *
  * Deliberately no AnimatedBackground here (see that component's own
  * comment) — this shell wraps every list/table-heavy admin screen.
@@ -107,22 +120,22 @@ function UnsupportedViewport({ logoSrc }: { logoSrc: string }) {
  */
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const badgeCounts = {
     pendingApplications: getPendingApplicationCount(),
     openReports: getOpenReportCount(),
   } as const;
-  // The dark-mode export reads as a near-white icon that vanishes against
-  // a light sidebar/topbar once the theme toggle (components/
-  // ThemeToggle.tsx) is switched — swap to the light-mode export the same
-  // way the main site's own BrandMark does, rather than leaving the logo
-  // one-theme-only.
+  // Swaps the logo lockup itself per theme (see LOGO above) rather than
+  // reusing one icon-only mark in both — same reasoning as the main
+  // site's own BrandMark: a mark tuned for one background reads wrong
+  // (or vanishes) against the other once the theme toggle (components/
+  // ThemeToggle.tsx) is switched.
   const { theme } = useTheme();
-  const logoSrc = theme === "light" ? "/brand/logo-mark-about-icon.png" : "/brand/logo-mark-icon.png";
+  const logo = LOGO[theme];
 
   return (
     <>
-      <UnsupportedViewport logoSrc={logoSrc} />
+      <UnsupportedViewport logo={logo} />
 
       <div className="hidden min-h-screen w-full flex-1 flex-row md:flex">
         <aside
@@ -136,14 +149,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             }`}
           >
             <Link href="/" className="flex items-center gap-2 overflow-hidden">
-              <div className="relative size-8 shrink-0 overflow-hidden">
-                <Image src={logoSrc} alt="" fill sizes="32px" className="object-cover" />
-              </div>
-              {!collapsed && <span className="whitespace-nowrap font-jakarta text-sm font-semibold text-cream">AUREX Admin</span>}
+              <Image src={logo.src} alt="AUREX" width={logo.width} height={logo.height} className="h-8 w-auto shrink-0" />
+              {!collapsed && <span className="whitespace-nowrap font-jakarta text-sm font-semibold text-cream">Admin</span>}
             </Link>
             <button
               type="button"
-              onClick={() => setCollapsed((v) => !v)}
+              onClick={toggleCollapsed}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className="flex size-7 shrink-0 items-center justify-center text-cream-dim transition-colors hover:text-gold-bright"
             >
