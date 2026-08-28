@@ -111,30 +111,40 @@ export default function OverviewView({
           <TrendChart data={investedTrend} />
         </div>
 
+        {/* This column stretches to match the trend chart's height (the
+            grid row's default align-items: stretch), and each card below
+            is flex-1 so the pair splits that full height evenly instead
+            of sitting shorter with dead space underneath — the segmented
+            bar itself stays a "thin mark" per the dataviz mark spec;
+            it's the card's height, not the bar's, that now matches. */}
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
+          <div className="flex flex-1 flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
             <h2 className="font-jakarta text-lg font-semibold text-cream">Applications by Status</h2>
-            <p className="mb-3 font-sans text-sm text-cream-dim">Every application ever submitted.</p>
-            <SegmentedBar
-              ariaLabel={`Applications by status: ${applicationStatusCounts.pending} pending, ${applicationStatusCounts.approved} approved, ${applicationStatusCounts.rejected} rejected`}
-              segments={[
-                { key: "pending", label: "Pending", value: applicationStatusCounts.pending, colorClassName: "bg-cream-dim" },
-                { key: "approved", label: "Approved", value: applicationStatusCounts.approved, colorClassName: "bg-[#4ade80]" },
-                { key: "rejected", label: "Rejected", value: applicationStatusCounts.rejected, colorClassName: "bg-[#f87171]" },
-              ]}
-            />
+            <p className="font-sans text-sm text-cream-dim">Every application ever submitted.</p>
+            <div className="flex flex-1 flex-col justify-center">
+              <SegmentedBar
+                ariaLabel={`Applications by status: ${applicationStatusCounts.pending} pending, ${applicationStatusCounts.approved} approved, ${applicationStatusCounts.rejected} rejected`}
+                segments={[
+                  { key: "pending", label: "Pending", value: applicationStatusCounts.pending, colorClassName: "bg-cream-dim" },
+                  { key: "approved", label: "Approved", value: applicationStatusCounts.approved, colorClassName: "bg-[#4ade80]" },
+                  { key: "rejected", label: "Rejected", value: applicationStatusCounts.rejected, colorClassName: "bg-[#f87171]" },
+                ]}
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
+          <div className="flex flex-1 flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
             <h2 className="font-jakarta text-lg font-semibold text-cream">Members by Track</h2>
-            <p className="mb-3 font-sans text-sm text-cream-dim">Registered investors vs. business owners.</p>
-            <SegmentedBar
-              ariaLabel={`Members by track: ${stats.investorCount} investors, ${stats.businessOwnerCount} business owners`}
-              segments={[
-                { key: "investor", label: "Investors", value: stats.investorCount, colorClassName: "bg-gold-deep" },
-                { key: "business", label: "Business Owners", value: stats.businessOwnerCount, colorClassName: "bg-cream-dim" },
-              ]}
-            />
+            <p className="font-sans text-sm text-cream-dim">Registered investors vs. business owners.</p>
+            <div className="flex flex-1 flex-col justify-center">
+              <SegmentedBar
+                ariaLabel={`Members by track: ${stats.investorCount} investors, ${stats.businessOwnerCount} business owners`}
+                segments={[
+                  { key: "investor", label: "Investors", value: stats.investorCount, colorClassName: "bg-gold-deep" },
+                  { key: "business", label: "Business Owners", value: stats.businessOwnerCount, colorClassName: "bg-cream-dim" },
+                ]}
+              />
+            </div>
           </div>
         </div>
       </motion.div>
