@@ -125,9 +125,9 @@ export default function OverviewView({
               <SegmentedBar
                 ariaLabel={`Applications by status: ${applicationStatusCounts.pending} pending, ${applicationStatusCounts.approved} approved, ${applicationStatusCounts.rejected} rejected`}
                 segments={[
-                  { key: "pending", label: "Pending", value: applicationStatusCounts.pending, color: "var(--color-cream-dim)" },
-                  { key: "approved", label: "Approved", value: applicationStatusCounts.approved, color: "#4ade80" },
-                  { key: "rejected", label: "Rejected", value: applicationStatusCounts.rejected, color: "#f87171" },
+                  { key: "pending", label: "Pending", value: applicationStatusCounts.pending, colorClassName: "bg-cream-dim" },
+                  { key: "approved", label: "Approved", value: applicationStatusCounts.approved, colorClassName: "bg-[#4ade80]" },
+                  { key: "rejected", label: "Rejected", value: applicationStatusCounts.rejected, colorClassName: "bg-[#f87171]" },
                 ]}
               />
             </div>
@@ -140,8 +140,8 @@ export default function OverviewView({
               <SegmentedBar
                 ariaLabel={`Members by track: ${stats.investorCount} investors, ${stats.businessOwnerCount} business owners`}
                 segments={[
-                  { key: "investor", label: "Investors", value: stats.investorCount, color: "var(--color-gold-deep)" },
-                  { key: "business", label: "Business Owners", value: stats.businessOwnerCount, color: "var(--color-cream-dim)" },
+                  { key: "investor", label: "Investors", value: stats.investorCount, colorClassName: "bg-gold-deep" },
+                  { key: "business", label: "Business Owners", value: stats.businessOwnerCount, colorClassName: "bg-cream-dim" },
                 ]}
               />
             </div>
