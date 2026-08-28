@@ -1,0 +1,200 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { scrollReveal, hoverScale } from "@/lib/motion";
+import { formatDisplayDate, formatGhs } from "@/lib/formatters";
+import PageHeader from "@/components/admin/PageHeader";
+import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
+import DocumentPreview from "@/components/admin/DocumentPreview";
+import { ArrowRightIcon, CheckIcon, XIcon } from "@/components/icons";
+import type { Application, ApplicationStatus } from "@/lib/applications";
+
+const STATUS_TONE: Record<ApplicationStatus, BadgeTone> = {
+  pending: "neutral",
+  approved: "gold",
+  rejected: "danger",
+};
+
+const STATUS_LABEL: Record<ApplicationStatus, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+};
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-sans text-xs uppercase tracking-wide text-cream-dim">{label}</span>
+      <p className="font-sans text-sm text-cream">{value}</p>
+    </div>
+  );
+}
+
+/**
+ * The Application detail/review screen. Approve/Reject only mutate this
+ * component's own React state — per the brief there's no backend and no
+ * localStorage/sessionStorage to persist to, so an action here reflects
+ * in the UI for this session only (a refresh reverts to the original mock
+ * status). That's flagged inline via `actionMessage` rather than
+ * pretending it's a real, saved decision.
+ *
+ * `scrollReveal` on each section rather than one big fade-in — this is
+ * the one admin screen genuinely long enough (personal info + business
+ * info + two documents + actions) to benefit from content revealing as
+ * you scroll, per the brief's own guidance for "detail views with lots
+ * of content".
+ */
+export default function ApplicationDetailView({ application }: { application: Application }) {
+  const [status, setStatus] = useState<ApplicationStatus>(application.status);
+  const [rejectionReason, setRejectionReason] = useState(application.rejectionReason ?? "");
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  const isDecided = status !== "pending";
+
+  function handleApprove() {
+    setStatus("approved");
+    setShowRejectForm(false);
+    setActionMessage(
+      `${application.nickname}'s application was approved. This is a stubbed action — nothing is persisted (no backend yet, and this admin app doesn't use localStorage), so a refresh reverts to pending.`
+    );
+  }
+
+  function handleReject() {
+    setStatus("rejected");
+    setShowRejectForm(false);
+    setActionMessage(
+      `${application.nickname}'s application was rejected${rejectionReason ? ` ("${rejectionReason}")` : ""}. This is a stubbed action — nothing is persisted.`
+    );
+  }
+
+  return (
+    <div className="flex flex-1 flex-col gap-8 px-4 py-8 sm:px-6 lg:px-10">
+      <Link href="/applications" className="flex w-fit items-center gap-1.5 font-sans text-sm text-cream-dim transition-colors hover:text-gold-bright">
+        <span className="rotate-180"><ArrowRightIcon className="size-3" /></span>
+        Back to queue
+      </Link>
+
+      <PageHeader
+        title={application.nickname}
+        description={`${application.track === "investor" ? "Investor" : "Business Owner"} application`}
+        action={<StatusBadge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} />}
+      />
+
+      {actionMessage && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="border border-gold/30 bg-gold/5 p-4 font-sans text-sm text-cream-dim">
+          {actionMessage}
+        </motion.div>
+      )}
+
+      <motion.section {...scrollReveal} className="flex flex-col gap-5 border border-grid-line bg-panel/20 p-6">
+        <h2 className="font-jakarta text-lg font-semibold text-cream">Applicant Details</h2>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Nickname" value={application.nickname} />
+          <Field label="Full Name" value={application.realName} />
+          <Field label="Email" value={application.email} />
+          <Field label="Phone" value={application.phone} />
+          <Field label="Country" value={application.country} />
+          <Field label="Submitted" value={formatDisplayDate(application.submittedAt)} />
+        </div>
+      </motion.section>
+
+      {application.track === "business" && (
+        <motion.section {...scrollReveal} className="flex flex-col gap-5 border border-grid-line bg-panel/20 p-6">
+          <h2 className="font-jakarta text-lg font-semibold text-cream">Business Details</h2>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <Field label="Business Name" value={application.businessName ?? "—"} />
+            <Field label="Funding Goal" value={application.fundingGoalGhs ? formatGhs(application.fundingGoalGhs) : "—"} />
+          </div>
+          <Field label="Description" value={application.businessDescription ?? "—"} />
+        </motion.section>
+      )}
+
+      <motion.section {...scrollReveal} className="flex flex-col gap-4 border border-grid-line bg-panel/20 p-6">
+        <h2 className="font-jakarta text-lg font-semibold text-cream">Documents</h2>
+        <div className="flex flex-col gap-3">
+          <DocumentPreview label="Government ID" fileName={application.idDocument.fileName} uploadedAt={application.idDocument.uploadedAt} />
+          {application.businessRegDocument && (
+            <DocumentPreview
+              label="Business Registration Certificate"
+              fileName={application.businessRegDocument.fileName}
+              uploadedAt={application.businessRegDocument.uploadedAt}
+            />
+          )}
+        </div>
+      </motion.section>
+
+      <motion.section {...scrollReveal} className="flex flex-col gap-4 border border-grid-line bg-panel/20 p-6">
+        <h2 className="font-jakarta text-lg font-semibold text-cream">Decision</h2>
+
+        {status === "rejected" && rejectionReason && (
+          <p className="font-sans text-sm text-cream-dim">
+            <span className="text-[#f87171]">Rejection reason:</span> {rejectionReason}
+          </p>
+        )}
+
+        {!isDecided && !showRejectForm && (
+          <div className="flex flex-wrap items-center gap-3">
+            <motion.button
+              {...hoverScale}
+              type="button"
+              onClick={handleApprove}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack"
+            >
+              <CheckIcon className="size-3.5" /> Approve
+            </motion.button>
+            <motion.button
+              {...hoverScale}
+              type="button"
+              onClick={() => setShowRejectForm(true)}
+              className="flex items-center gap-1.5 border border-[#f87171]/30 px-5 py-2.5 font-jakarta text-sm font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10"
+            >
+              <XIcon className="size-3.5" /> Reject
+            </motion.button>
+          </div>
+        )}
+
+        {!isDecided && showRejectForm && (
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="font-sans text-xs uppercase tracking-wide text-cream-dim">Reason (optional)</span>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+                placeholder="e.g. ID document image unreadable"
+                className="border border-grid-line bg-panel/60 px-3 py-2 font-sans text-sm text-cream placeholder:text-cream-dim/50 focus:border-gold/50 focus:outline-none"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <motion.button
+                {...hoverScale}
+                type="button"
+                onClick={handleReject}
+                className="flex items-center gap-1.5 border border-[#f87171]/30 px-5 py-2.5 font-jakarta text-sm font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10"
+              >
+                <XIcon className="size-3.5" /> Confirm Rejection
+              </motion.button>
+              <button
+                type="button"
+                onClick={() => setShowRejectForm(false)}
+                className="font-sans text-sm text-cream-dim transition-colors hover:text-cream"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isDecided && (
+          <p className="font-sans text-sm text-cream-dim">
+            This application has already been {status}. Stubbed for now — a real admin tool would let you reverse a
+            decision from here too.
+          </p>
+        )}
+      </motion.section>
+    </div>
+  );
+}
