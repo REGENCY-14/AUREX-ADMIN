@@ -7,6 +7,7 @@ import { scrollReveal, hoverScale } from "@/lib/motion";
 import { formatDisplayDate, formatGhs } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import DocumentPreview from "@/components/admin/DocumentPreview";
 import { ArrowRightIcon, CheckIcon, XIcon } from "@/components/icons";
 import type { Application, ApplicationStatus } from "@/lib/applications";
@@ -51,6 +52,7 @@ export default function ApplicationDetailView({ application }: { application: Ap
   const [rejectionReason, setRejectionReason] = useState(application.rejectionReason ?? "");
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
 
   const isDecided = status !== "pending";
 
@@ -140,7 +142,7 @@ export default function ApplicationDetailView({ application }: { application: Ap
             <motion.button
               {...hoverScale}
               type="button"
-              onClick={handleApprove}
+              onClick={() => setConfirmApproveOpen(true)}
               className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack"
             >
               <CheckIcon className="size-3.5" /> Approve
@@ -195,6 +197,18 @@ export default function ApplicationDetailView({ application }: { application: Ap
           </p>
         )}
       </motion.section>
+
+      <ConfirmDialog
+        isOpen={confirmApproveOpen}
+        onClose={() => setConfirmApproveOpen(false)}
+        onConfirm={handleApprove}
+        title="Approve this application?"
+        description={`${application.nickname} will be admitted to the platform as a${
+          application.track === "investor" ? "n investor" : " business owner"
+        }.`}
+        confirmLabel="Approve"
+        tone="gold"
+      />
     </div>
   );
 }

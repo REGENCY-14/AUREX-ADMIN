@@ -7,6 +7,7 @@ import { scrollReveal, hoverScale } from "@/lib/motion";
 import { formatDisplayDate, formatGhs } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { ArrowRightIcon } from "@/components/icons";
 import type { Member, MemberStatus } from "@/lib/members";
 import type { InvestmentRecord } from "@/lib/investments";
@@ -54,6 +55,7 @@ export default function MemberDetailView({
 }) {
   const [status, setStatus] = useState<MemberStatus>(member.status);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [confirmToggleOpen, setConfirmToggleOpen] = useState(false);
 
   const totalInvested = investmentRecords.reduce((sum, r) => sum + r.amountInvestedGhs, 0);
 
@@ -154,7 +156,7 @@ export default function MemberDetailView({
           <motion.button
             {...hoverScale}
             type="button"
-            onClick={toggleStatus}
+            onClick={() => setConfirmToggleOpen(true)}
             className={
               status === "active"
                 ? "flex items-center gap-1.5 border border-[#f87171]/30 px-5 py-2.5 font-jakarta text-sm font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10"
@@ -165,6 +167,20 @@ export default function MemberDetailView({
           </motion.button>
         </div>
       </motion.section>
+
+      <ConfirmDialog
+        isOpen={confirmToggleOpen}
+        onClose={() => setConfirmToggleOpen(false)}
+        onConfirm={toggleStatus}
+        title={status === "active" ? "Suspend this member?" : "Reactivate this member?"}
+        description={
+          status === "active"
+            ? `${member.nickname} will lose access to the platform until reactivated.`
+            : `${member.nickname} will regain full access to the platform.`
+        }
+        confirmLabel={status === "active" ? "Suspend" : "Reactivate"}
+        tone={status === "active" ? "danger" : "gold"}
+      />
     </div>
   );
 }

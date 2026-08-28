@@ -7,6 +7,7 @@ import { formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge from "@/components/admin/StatusBadge";
 import Modal from "@/components/admin/Modal";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import ContentForm, { type ContentFormValues } from "@/components/admin/content/ContentForm";
 import { ArrowUpIcon, ArrowDownIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import type { ContentBlock } from "@/lib/homeContent";
@@ -17,14 +18,15 @@ import type { ContentBlock } from "@/lib/homeContent";
  * this admin app doesn't have — plain buttons cover "reorder" without
  * one, and stay fully keyboard-usable, which drag handles alone
  * wouldn't). Add/Edit share the same modal form as Slots/Listings;
- * Remove asks for nothing further — an internal tool used repeatedly by
- * the same person doesn't need a second confirmation dialog for
- * something this cheap to notice and re-add.
+ * Remove now asks first too, via ConfirmDialog — per feedback that
+ * every important action should confirm, not only outright deletion,
+ * so this one, which is exactly outright deletion, definitely does.
  */
 export default function ContentView({ blocks: initialBlocks }: { blocks: ContentBlock[] }) {
   const [blocks, setBlocks] = useState(initialBlocks);
   const [editingBlock, setEditingBlock] = useState<ContentBlock | "new" | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [confirmRemoveBlock, setConfirmRemoveBlock] = useState<ContentBlock | null>(null);
 
   function move(id: string, direction: -1 | 1) {
     setBlocks((prev) => {
@@ -138,7 +140,7 @@ export default function ContentView({ blocks: initialBlocks }: { blocks: Content
                 </button>
                 <button
                   type="button"
-                  onClick={() => remove(block)}
+                  onClick={() => setConfirmRemoveBlock(block)}
                   aria-label="Remove"
                   className="flex size-8 items-center justify-center border border-[#f87171]/30 text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10"
                 >
@@ -162,6 +164,18 @@ export default function ContentView({ blocks: initialBlocks }: { blocks: Content
           onSave={handleSave}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={confirmRemoveBlock !== null}
+        onClose={() => setConfirmRemoveBlock(null)}
+        onConfirm={() => {
+          if (confirmRemoveBlock) remove(confirmRemoveBlock);
+        }}
+        title="Remove this content block?"
+        description={confirmRemoveBlock ? `“${confirmRemoveBlock.title}” will no longer show on the public site.` : undefined}
+        confirmLabel="Remove"
+        tone="danger"
+      />
     </motion.div>
   );
 }

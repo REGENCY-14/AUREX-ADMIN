@@ -10,6 +10,7 @@ import StatusDot from "@/components/admin/StatusDot";
 import Select from "@/components/admin/Select";
 import { DANGER_ROW_CLASSNAME, iconButtonClassName } from "@/components/admin/tableStyles";
 import Modal from "@/components/admin/Modal";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SlotForm, { type SlotFormValues } from "@/components/admin/slots/SlotForm";
 import { PencilIcon, PlusIcon } from "@/components/icons";
 import {
@@ -64,6 +65,7 @@ export default function SlotsView({
   const [modalSlot, setModalSlot] = useState<InvestmentSlot | "new" | null>(null);
   const [publishError, setPublishError] = useState<string | undefined>(undefined);
   const [banner, setBanner] = useState<string | null>(null);
+  const [confirmSlotAction, setConfirmSlotAction] = useState<{ type: "publish" | "closeEarly"; slot: InvestmentSlot } | null>(null);
 
   const filtered = useMemo(
     () => slots.filter((s) => statusFilter === "all" || s.status === statusFilter),
@@ -203,7 +205,7 @@ export default function SlotsView({
                       {slot.status === "draft" && (
                         <button
                           type="button"
-                          onClick={() => handlePublishFromList(slot)}
+                          onClick={() => setConfirmSlotAction({ type: "publish", slot })}
                           className="border border-gold/30 px-2.5 py-1 font-jakarta text-xs font-medium text-gold-bright transition-colors hover:border-gold hover:bg-gold/5"
                         >
                           Publish
@@ -212,7 +214,7 @@ export default function SlotsView({
                       {slot.status === "open" && (
                         <button
                           type="button"
-                          onClick={() => handleCloseEarly(slot)}
+                          onClick={() => setConfirmSlotAction({ type: "closeEarly", slot })}
                           className="border border-[#f87171]/30 px-2.5 py-1 font-jakarta text-xs font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10"
                         >
                           Close Early
@@ -259,7 +261,7 @@ export default function SlotsView({
                 {slot.status === "draft" && (
                   <button
                     type="button"
-                    onClick={() => handlePublishFromList(slot)}
+                    onClick={() => setConfirmSlotAction({ type: "publish", slot })}
                     className="border border-gold/30 px-2.5 py-1 font-jakarta text-xs font-medium text-gold-bright"
                   >
                     Publish
@@ -268,7 +270,7 @@ export default function SlotsView({
                 {slot.status === "open" && (
                   <button
                     type="button"
-                    onClick={() => handleCloseEarly(slot)}
+                    onClick={() => setConfirmSlotAction({ type: "closeEarly", slot })}
                     className="border border-[#f87171]/30 px-2.5 py-1 font-jakarta text-xs font-medium text-[#f87171]"
                   >
                     Close Early
@@ -304,6 +306,30 @@ export default function SlotsView({
           publishError={publishError}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={confirmSlotAction !== null}
+        onClose={() => setConfirmSlotAction(null)}
+        onConfirm={() => {
+          if (!confirmSlotAction) return;
+          if (confirmSlotAction.type === "publish") handlePublishFromList(confirmSlotAction.slot);
+          else handleCloseEarly(confirmSlotAction.slot);
+        }}
+        title={
+          confirmSlotAction?.type === "publish"
+            ? "Publish this slot?"
+            : "Close this slot early?"
+        }
+        description={
+          confirmSlotAction?.type === "publish"
+            ? `“${SLOT_PACKAGE_LABEL[confirmSlotAction.slot.package]}” will open for investment immediately.`
+            : confirmSlotAction
+              ? `“${SLOT_PACKAGE_LABEL[confirmSlotAction.slot.package]}” will stop accepting new investment right away.`
+              : undefined
+        }
+        confirmLabel={confirmSlotAction?.type === "publish" ? "Publish" : "Close Early"}
+        tone={confirmSlotAction?.type === "publish" ? "gold" : "danger"}
+      />
     </motion.div>
   );
 }
