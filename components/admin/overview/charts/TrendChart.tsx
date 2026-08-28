@@ -13,10 +13,8 @@ const PAD = { top: 24, right: 16, bottom: 28, left: 56 };
 
 /**
  * A single-series cumulative trend line — per dataviz guidance, a trend-
- * over-time job takes one hue (gold-deep, the one shade of the brand's
- * only hue family that still clears the >=3:1 mark-contrast floor against
- * a light-mode surface; every lighter gold shade falls short there — see
- * this component's own light-mode note below) rather than a rainbow.
+ * over-time job takes one hue (gold-deep, the deepest/most-saturated
+ * shade in the brand's one hue family) rather than a rainbow.
  *
  * Interaction follows the skill's own spec: a crosshair tracks the
  * pointer and snaps to the nearest month; the tooltip's value is the
@@ -24,16 +22,19 @@ const PAD = { top: 24, right: 16, bottom: 28, left: 56 };
  * also reachable without hovering at all via the "Show data" table
  * toggle underneath — tooltips enhance, they never gate.
  *
- * Light-mode note: even gold-deep only reaches ~2.6:1 against this
- * brand's near-white light surface (measured with the skill's own
- * contrast() checker) — below the 3:1 mark floor. Per the skill's
- * documented mitigation for exactly this case (a WARN is legal only
- * with a secondary encoding, never dismissed outright), every value
- * here is also carried by direct text labels (the endpoint figure, the
- * axis ticks, the tooltip, the data table) in the theme-flipping
- * cream/cream-dim text tokens, which contrast comfortably in both
- * modes — so the line's shape is a visual aid, never the only carrier
- * of the number.
+ * Light-mode note: gold-deep only reaches ~2.6:1 against this brand's
+ * near-white light surface (measured with the skill's own contrast()
+ * checker) — below the 3:1 mark floor, and there's no deeper gold shade
+ * available: a darker light-mode-only gold override was tried and
+ * reverted per feedback (it read as brown, not gold — see
+ * app/globals.css's own comment), so this is the brand's one gold,
+ * unchanged across both themes. Per the skill's documented mitigation
+ * for exactly this case (a WARN is legal only with a secondary
+ * encoding, never dismissed outright), every value here is also carried
+ * by direct text labels (the endpoint figure, the axis ticks, the
+ * tooltip, the data table) in the theme-flipping cream/cream-dim text
+ * tokens, which contrast comfortably in both modes — so the line's
+ * shape is a visual aid, never the only carrier of the number.
  */
 export default function TrendChart({ data }: { data: MonthlyInvestedPoint[] }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);

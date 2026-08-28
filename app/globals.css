@@ -60,41 +60,27 @@
    flip page-wide are redefined here: the page background, card surfaces,
    section-divider borders, and body/heading text. Everything else is left
    alone on purpose:
-   - --amainblack and --color-umber are theme-neutral brand accents
-     already tuned to work on both light and dark surfaces.
+   - --amainblack, the gold family, and --color-umber are theme-neutral
+     brand accents already tuned to work on both light and dark surfaces.
+     (A darker, contrast-boosted light-mode gold was tried here and
+     reverted per feedback — it read as brown/muddy rather than gold, so
+     this stays the same vivid palette in both themes, same as the main
+     AUREX site's own copy of this file; gold text/chart strokes are
+     visibly lower-contrast on the light surface as a result, a known,
+     accepted trade-off rather than an oversight.)
    - --color-ink-light and --color-graphite are deliberately NOT flipped —
      they back the few surfaces the source design keeps dark even in light
      mode (the Hero "vault" visual, its stat overlays, the CTA info box),
      matching Figma rather than inverting them too.
    A handful of one-off spots that don't route through these tokens at all
    (e.g. Tailwind's neutral-*, a couple of hardcoded hex values) get their
-   own `light:` override directly in the component instead.
-
-   The gold family DOES get flipped here — same fix, same values, as the
-   main AUREX site's own copy of this file. Measured with a WCAG contrast
-   checker, every dark-mode gold value sits at 1.4–2.7:1 against this
-   theme's near-white ink/panel surfaces: below the 3:1 floor for a
-   graphical mark or large text, let alone 4.5:1 for normal text — exactly
-   the "gold text/chart strokes not visible enough" symptom reported
-   against this shared palette (this repo's own chart components, e.g.
-   TrendChart's line and PackagePieChart's Core slice, both pick up
-   gold-deep automatically once this variable changes, no component edit
-   needed). Each value targets a specific contrast ratio against white at
-   the SAME hue/saturation as its dark-mode counterpart — same gold, only
-   the lightness pulled down to what this surface actually needs. */
+   own `light:` override directly in the component instead. */
 [data-theme="light"] {
   --color-ink: #fbfbf9;
   --color-panel: #ffffff;
   --color-grid-line: #d9d9d9;
   --color-cream: #1a1a1a;
   --color-cream-dim: #5f5e5e;
-
-  --color-gold: #84621f;
-  --color-gold-light: #8e6917;
-  --color-gold-bright: #966e0b;
-  --color-gold-deep: #6d5020;
-  --color-gold-muted: #785920;
-
   color-scheme: light;
 }
 
