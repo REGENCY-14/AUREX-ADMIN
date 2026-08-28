@@ -12,13 +12,11 @@ export type SelectOption = { value: string; label: string };
  * restyle — Chromium on Windows ignores author CSS on <option> almost
  * entirely, always painting its own blue hover highlight, which is
  * exactly the "hovering is blue, it should match our colors" symptom.
- * Matching the reference's rounded panel + tinted hover pill meant
- * building the list ourselves rather than trying to theme the native
- * one.
- *
- * Deliberately full corner rounding here (unlike this app's usual
- * square cards/borders) — this ask was to follow the reference's own
- * shape too, not just recolor the hover state.
+ * Matching the reference's tinted hover pill meant building the list
+ * ourselves rather than trying to theme the native one — its rounded
+ * corners are NOT carried over per feedback, though: this app's panel
+ * and option rows stay square, same as its cards/borders everywhere
+ * else.
  */
 export default function Select({
   value,
@@ -71,7 +69,7 @@ export default function Select({
         <ul
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute left-0 top-full z-20 mt-2 min-w-full max-w-[calc(100vw-2rem)] rounded-2xl border border-gold/20 bg-panel p-1.5 shadow-lg"
+          className="absolute left-0 top-full z-20 mt-2 min-w-full max-w-[calc(100vw-2rem)] border border-gold/20 bg-panel p-1.5 shadow-lg"
         >
           {options.map((option) => {
             const isSelected = option.value === value;
@@ -83,7 +81,7 @@ export default function Select({
                     onChange(option.value);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left font-sans text-sm transition-colors hover:bg-gold/10 hover:text-gold-bright ${
+                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left font-sans text-sm transition-colors hover:bg-gold/10 hover:text-gold-bright ${
                     isSelected ? "text-gold-bright" : "text-cream"
                   }`}
                 >
