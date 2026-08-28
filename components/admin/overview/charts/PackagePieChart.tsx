@@ -60,11 +60,20 @@ function donutSlicePath(startAngle: number, endAngle: number) {
  * per the dataviz skill's own guidance the default form would be a
  * proportion bar (same as the two SegmentedBar charts elsewhere on this
  * page), not a pie — requested as a pie chart specifically here, so
- * this is a donut (a pie chart's own inner-radius variant): the hole
- * fits the platform total, which a reader needs anyway to make sense of
- * "a share of total amount invested" as a real GHS figure and not just
- * a percentage. Same fixed-identity colors and hover-tooltip/legend
- * rigor as the other charts on this page regardless of the shape.
+ * this is a donut (a pie chart's own inner-radius variant).
+ *
+ * Per feedback: no in-chart/paragraph text at all — the card's own
+ * heading is left to say what this is, so both the center-hole label
+ * (total/hovered figure) and the card's description paragraph (in
+ * OverviewView) are dropped. The legend sits below the donut, one line
+ * per slice (dot, label, percent only — the GHS figure moved to a
+ * `title` tooltip rather than sitting in the row) so both entries stay
+ * short enough to sit side by side even in this card's own narrower
+ * grid column, rather than wrapping to a vertical stack. Same fixed-
+ * identity colors and hover rigor as the other charts on this page
+ * regardless of the shape; the SVG keeps its own aria-label so the
+ * numbers stay reachable for screen readers even with no visible
+ * on-chart text.
  */
 export default function PackagePieChart({ allocation }: { allocation: PackageAllocation }) {
   const [hoverKey, setHoverKey] = useState<Slice["key"] | null>(null);
@@ -83,10 +92,8 @@ export default function PackagePieChart({ allocation }: { allocation: PackageAll
       return acc;
     }, []);
 
-  const hovered = drawn.find((s) => s.key === hoverKey);
-
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 sm:flex-row sm:items-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-5">
       <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
         <svg
           viewBox={`0 0 ${SIZE} ${SIZE}`}
@@ -110,34 +117,20 @@ export default function PackagePieChart({ allocation }: { allocation: PackageAll
             />
           ))}
         </svg>
-
-        {/* Center label — the whole this chart's shares are a share OF,
-            so "a share of total amount invested" reads as a real figure,
-            not just a bare percentage. Swaps to the hovered slice's own
-            figure on hover/focus. */}
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-0.5 text-center">
-          <span className="font-jakarta text-lg font-bold text-cream">
-            {formatGhs(hovered ? hovered.value : total)}
-          </span>
-          <span className="font-sans text-[11px] text-cream-dim">{hovered ? `${hovered.label} · ${hovered.percent}%` : "Total Invested"}</span>
-        </div>
       </div>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-row flex-wrap items-center justify-center gap-x-4 gap-y-2">
         {drawn.map((slice) => (
           <div
             key={slice.key}
+            title={formatGhs(slice.value)}
             onPointerEnter={() => setHoverKey(slice.key)}
             onPointerLeave={() => setHoverKey(null)}
-            className="flex items-center gap-2.5 font-sans text-sm text-cream-dim"
+            className="flex items-center gap-1.5 whitespace-nowrap font-sans text-sm text-cream-dim"
           >
             <span className={`size-2.5 shrink-0 rounded-sm ${slice.colorClassName.replace("fill-", "bg-")}`} />
-            <span className="flex flex-col">
-              <span className="text-cream">
-                {slice.label} <span className="font-jakarta font-semibold">{slice.percent}%</span>
-              </span>
-              <span className="text-xs">{formatGhs(slice.value)}</span>
-            </span>
+            <span className="text-cream">{slice.label}</span>
+            <span className="font-jakarta font-semibold text-cream">{slice.percent}%</span>
           </div>
         ))}
       </div>
