@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { staggerContainer, scrollReveal } from "@/lib/motion";
 import PageHeader from "@/components/admin/PageHeader";
 import StatCard from "@/components/admin/StatCard";
+import { InboxIcon, UsersIcon, LayersIcon, BriefcaseIcon } from "@/components/icons";
 import TrendChart from "@/components/admin/overview/charts/TrendChart";
 import SegmentedBar from "@/components/admin/overview/charts/SegmentedBar";
 import PackagePieChart from "@/components/admin/overview/charts/PackagePieChart";
@@ -73,24 +74,28 @@ export default function OverviewView({
             value={String(stats.pendingApplications)}
             href="/applications?status=pending"
             sublabel="Awaiting review"
+            icon={InboxIcon}
           />
           <StatCard
             label="Registered Members"
             value={String(totalMembers)}
             href="/members"
             sublabel={`${stats.investorCount} Investors · ${stats.businessOwnerCount} Business Owners`}
+            icon={UsersIcon}
           />
           <StatCard
             label="Open Investment Slots"
             value={String(stats.openSlotCount)}
             href="/slots?status=open"
             sublabel="Currently accepting investment"
+            icon={LayersIcon}
           />
           <StatCard
             label="Live Business Listings"
             value={String(stats.liveListingCount)}
             href="/listings?status=live"
             sublabel="Raising funds now"
+            icon={BriefcaseIcon}
           />
         </div>
 
