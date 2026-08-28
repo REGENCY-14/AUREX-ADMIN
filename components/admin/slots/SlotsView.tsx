@@ -13,7 +13,7 @@ import ActionsMenu, { type ActionMenuItem } from "@/components/admin/ActionsMenu
 import Modal from "@/components/admin/Modal";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SlotForm, { type SlotFormValues } from "@/components/admin/slots/SlotForm";
-import { PencilIcon, PlusIcon } from "@/components/icons";
+import { PencilIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import {
   SLOT_PACKAGE_LABEL,
   SLOT_STATUS_LABEL,
@@ -40,6 +40,7 @@ function SlotTable({
   onPublish,
   onCloseEarly,
   onEdit,
+  onDelete,
 }: {
   slots: InvestmentSlot[];
   listingsById: Record<string, BusinessListing>;
@@ -47,6 +48,7 @@ function SlotTable({
   onPublish: (slot: InvestmentSlot) => void;
   onCloseEarly: (slot: InvestmentSlot) => void;
   onEdit: (slot: InvestmentSlot) => void;
+  onDelete: (slot: InvestmentSlot) => void;
 }) {
   function actionItems(slot: InvestmentSlot): ActionMenuItem[] {
     const items: ActionMenuItem[] = [];
@@ -57,6 +59,12 @@ function SlotTable({
       items.push({ key: "closeEarly", label: "Close Early", tone: "danger", onClick: () => onCloseEarly(slot) });
     }
     items.push({ key: "edit", label: "Edit", icon: PencilIcon, onClick: () => onEdit(slot) });
+    // Delete only ever applies to a draft — it was never published, so
+    // there's no live investment activity riding on it yet. An open or
+    // closed slot keeps Close Early/Edit only, same as before.
+    if (slot.status === "draft") {
+      items.push({ key: "delete", label: "Delete", tone: "danger", icon: TrashIcon, onClick: () => onDelete(slot) });
+    }
     return items;
   }
 
@@ -164,14 +172,49 @@ function fromFormValues(values: SlotFormValues, existing?: InvestmentSlot): Omit
   };
 }
 
+type SlotAction = "publish" | "closeEarly" | "delete";
+
+/** Copy for the one shared ConfirmDialog below, keyed by action — a
+ *  lookup instead of a three-way ternary chain now that there are three
+ *  confirmable actions instead of two. */
+const CONFIRM_COPY: Record<
+  SlotAction,
+  { title: string; description: (slot: InvestmentSlot) => string; confirmLabel: string; tone: "gold" | "danger" }
+> = {
+  publish: {
+    title: "Publish this slot?",
+    description: (slot) => `“${SLOT_PACKAGE_LABEL[slot.package]}” will open for investment immediately.`,
+    confirmLabel: "Publish",
+    tone: "gold",
+  },
+  closeEarly: {
+    title: "Close this slot early?",
+    description: (slot) => `“${SLOT_PACKAGE_LABEL[slot.package]}” will stop accepting new investment right away.`,
+    confirmLabel: "Close Early",
+    tone: "danger",
+  },
+  delete: {
+    title: "Delete this draft slot?",
+    description: (slot) => `“${SLOT_PACKAGE_LABEL[slot.package]}” will be permanently deleted. This can't be undone.`,
+    confirmLabel: "Delete",
+    tone: "danger",
+  },
+};
+
 /**
  * Investment Slot Management: list + a create/edit form presented as a
- * modal (rather than a separate route) so Publish/Edit/Close early and
- * the form itself can all mutate one local `slots` array directly — no
- * cross-route state-sharing problem to solve for a mock/no-backend tool.
- * See ApplicationDetailView's own comment for why Applications/Members
- * instead use full detail *pages*: those need room for documents/history
- * a modal can't comfortably hold, this genuinely is just a form.
+ * modal (rather than a separate route) so Publish/Edit/Close Early/
+ * Delete and the form itself can all mutate one local `slots` array
+ * directly — no cross-route state-sharing problem to solve for a mock/
+ * no-backend tool. See ApplicationDetailView's own comment for why
+ * Applications/Members instead use full detail *pages*: those need room
+ * for documents/history a modal can't comfortably hold, this genuinely
+ * is just a form.
+ *
+ * Delete is draft-only (see SlotTable's own actionItems) — a published
+ * slot may already have real investment activity riding on it, so
+ * Close Early is the only way out of `open`; a draft was never
+ * published, so there's nothing downstream to protect.
  */
 export default function SlotsView({
   slots: initialSlots,
@@ -189,7 +232,7 @@ export default function SlotsView({
   const [modalSlot, setModalSlot] = useState<InvestmentSlot | "new" | null>(null);
   const [publishError, setPublishError] = useState<string | undefined>(undefined);
   const [banner, setBanner] = useState<string | null>(null);
-  const [confirmSlotAction, setConfirmSlotAction] = useState<{ type: "publish" | "closeEarly"; slot: InvestmentSlot } | null>(null);
+  const [confirmSlotAction, setConfirmSlotAction] = useState<{ type: SlotAction; slot: InvestmentSlot } | null>(null);
 
   const filtered = useMemo(
     () => slots.filter((s) => statusFilter === "all" || s.status === statusFilter),
@@ -248,6 +291,11 @@ export default function SlotsView({
     setBanner(`“${SLOT_PACKAGE_LABEL[slot.package]}” slot closed early.`);
   }
 
+  function handleDeleteSlot(slot: InvestmentSlot) {
+    setSlots((prev) => prev.filter((s) => s.id !== slot.id));
+    setBanner(`“${SLOT_PACKAGE_LABEL[slot.package]}” draft deleted.`);
+  }
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -302,6 +350,7 @@ export default function SlotsView({
           onPublish={(slot) => setConfirmSlotAction({ type: "publish", slot })}
           onCloseEarly={(slot) => setConfirmSlotAction({ type: "closeEarly", slot })}
           onEdit={(slot) => setModalSlot(slot)}
+          onDelete={(slot) => setConfirmSlotAction({ type: "delete", slot })}
         />
       </motion.div>
 
@@ -314,6 +363,7 @@ export default function SlotsView({
           onPublish={(slot) => setConfirmSlotAction({ type: "publish", slot })}
           onCloseEarly={(slot) => setConfirmSlotAction({ type: "closeEarly", slot })}
           onEdit={(slot) => setModalSlot(slot)}
+          onDelete={(slot) => setConfirmSlotAction({ type: "delete", slot })}
         />
       </motion.div>
 
@@ -340,22 +390,13 @@ export default function SlotsView({
         onConfirm={() => {
           if (!confirmSlotAction) return;
           if (confirmSlotAction.type === "publish") handlePublishFromList(confirmSlotAction.slot);
-          else handleCloseEarly(confirmSlotAction.slot);
+          else if (confirmSlotAction.type === "closeEarly") handleCloseEarly(confirmSlotAction.slot);
+          else handleDeleteSlot(confirmSlotAction.slot);
         }}
-        title={
-          confirmSlotAction?.type === "publish"
-            ? "Publish this slot?"
-            : "Close this slot early?"
-        }
-        description={
-          confirmSlotAction?.type === "publish"
-            ? `“${SLOT_PACKAGE_LABEL[confirmSlotAction.slot.package]}” will open for investment immediately.`
-            : confirmSlotAction
-              ? `“${SLOT_PACKAGE_LABEL[confirmSlotAction.slot.package]}” will stop accepting new investment right away.`
-              : undefined
-        }
-        confirmLabel={confirmSlotAction?.type === "publish" ? "Publish" : "Close Early"}
-        tone={confirmSlotAction?.type === "publish" ? "gold" : "danger"}
+        title={confirmSlotAction ? CONFIRM_COPY[confirmSlotAction.type].title : ""}
+        description={confirmSlotAction ? CONFIRM_COPY[confirmSlotAction.type].description(confirmSlotAction.slot) : undefined}
+        confirmLabel={confirmSlotAction ? CONFIRM_COPY[confirmSlotAction.type].confirmLabel : undefined}
+        tone={confirmSlotAction ? CONFIRM_COPY[confirmSlotAction.type].tone : undefined}
       />
     </motion.div>
   );
