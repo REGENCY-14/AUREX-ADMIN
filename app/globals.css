@@ -60,27 +60,39 @@
    flip page-wide are redefined here: the page background, card surfaces,
    section-divider borders, and body/heading text. Everything else is left
    alone on purpose:
-   - --amainblack, the gold family, and --color-umber are theme-neutral
-     brand accents already tuned to work on both light and dark surfaces.
-     (A darker, contrast-boosted light-mode gold was tried here and
-     reverted per feedback — it read as brown/muddy rather than gold, so
-     this stays the same vivid palette in both themes, same as the main
-     AUREX site's own copy of this file; gold text/chart strokes are
-     visibly lower-contrast on the light surface as a result, a known,
-     accepted trade-off rather than an oversight.)
+   - --amainblack, --color-gold, --color-gold-light, --color-gold-deep,
+     and --color-umber are theme-neutral brand accents already tuned to
+     work on both light and dark surfaces (borders, button/badge fills,
+     gradients — all backed by dark text or enough surrounding chrome
+     that they don't need a light-mode-specific value), same as the main
+     AUREX site's own copy of this file.
    - --color-ink-light and --color-graphite are deliberately NOT flipped —
      they back the few surfaces the source design keeps dark even in light
      mode (the Hero "vault" visual, its stat overlays, the CTA info box),
      matching Figma rather than inverting them too.
    A handful of one-off spots that don't route through these tokens at all
    (e.g. Tailwind's neutral-*, a couple of hardcoded hex values) get their
-   own `light:` override directly in the component instead. */
+   own `light:` override directly in the component instead.
+
+   --color-gold-bright and --color-gold-muted DO get a light-mode value,
+   unlike the rest of the gold family: those two are the ones this repo
+   uses as flat text/stroke color with nothing else backing them (stat
+   tile values, badges, TrendChart's line, PackagePieChart's Core slice),
+   and the dark-mode values there read as too pale to see on this
+   surface. #b8860e — same fix, same value, as the main site's own
+   globals.css — is a richer, still-recognizably-gold amber (~3.25:1 on
+   white) that fixes those specific spots without touching the brighter
+   gold used for borders/buttons/gradients. */
 [data-theme="light"] {
   --color-ink: #fbfbf9;
   --color-panel: #ffffff;
   --color-grid-line: #d9d9d9;
   --color-cream: #1a1a1a;
   --color-cream-dim: #5f5e5e;
+
+  --color-gold-bright: #b8860e;
+  --color-gold-muted: #b8860e;
+
   color-scheme: light;
 }
 
