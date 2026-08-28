@@ -94,7 +94,7 @@ export default function OverviewView({
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
+        <div className="flex flex-col gap-1.5 border border-gold/20 bg-panel/40 p-6">
           <h2 className="font-jakarta text-lg font-semibold text-cream">Investment Allocation by Package</h2>
           <p className="mb-2 font-sans text-sm text-cream-dim">
             AUREX Core vs. AUREX Ventures, as a share of total amount invested — directly useful for seeing where
@@ -105,7 +105,7 @@ export default function OverviewView({
       </div>
 
       <motion.div {...scrollReveal} className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
-        <div className="flex flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
+        <div className="flex flex-col gap-1.5 border border-gold/20 bg-panel/40 p-6">
           <h2 className="font-jakarta text-lg font-semibold text-cream">Total Invested Over Time</h2>
           <p className="mb-3 font-sans text-sm text-cream-dim">Cumulative amount invested, platform-wide.</p>
           <TrendChart data={investedTrend} />
@@ -118,7 +118,7 @@ export default function OverviewView({
             bar itself stays a "thin mark" per the dataviz mark spec;
             it's the card's height, not the bar's, that now matches. */}
         <div className="flex flex-col gap-4">
-          <div className="flex flex-1 flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
+          <div className="flex flex-1 flex-col gap-1.5 border border-gold/20 bg-panel/40 p-6">
             <h2 className="font-jakarta text-lg font-semibold text-cream">Applications by Status</h2>
             <p className="font-sans text-sm text-cream-dim">Every application ever submitted.</p>
             <div className="flex flex-1 flex-col justify-center">
@@ -133,7 +133,7 @@ export default function OverviewView({
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-1.5 border border-grid-line bg-panel/20 p-6">
+          <div className="flex flex-1 flex-col gap-1.5 border border-gold/20 bg-panel/40 p-6">
             <h2 className="font-jakarta text-lg font-semibold text-cream">Members by Track</h2>
             <p className="font-sans text-sm text-cream-dim">Registered investors vs. business owners.</p>
             <div className="flex flex-1 flex-col justify-center">
