@@ -28,3 +28,15 @@ export function formatDateTime(iso: string): string {
     minute: "2-digit",
   });
 }
+
+/**
+ * Builds a wa.me deep link from a member's phone-on-file, optionally
+ * prefilled with a message — same "hand off to WhatsApp, no real
+ * messaging backend" stub as the main site's own investment flow. wa.me
+ * wants digits only (no "+", spaces, or dashes), hence the strip.
+ */
+export function buildWhatsAppLink(phone: string, message?: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const query = message ? `?text=${encodeURIComponent(message)}` : "";
+  return `https://wa.me/${digits}${query}`;
+}

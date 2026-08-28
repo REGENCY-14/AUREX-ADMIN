@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { staggerContainer, scrollReveal } from "@/lib/motion";
 import PageHeader from "@/components/admin/PageHeader";
 import StatCard from "@/components/admin/StatCard";
-import { InboxIcon, UsersIcon, LayersIcon, BriefcaseIcon } from "@/components/icons";
+import { InboxIcon, UsersIcon, LayersIcon, BriefcaseIcon, AlertIcon } from "@/components/icons";
 import TrendChart from "@/components/admin/overview/charts/TrendChart";
 import SegmentedBar from "@/components/admin/overview/charts/SegmentedBar";
 import PackagePieChart from "@/components/admin/overview/charts/PackagePieChart";
@@ -16,6 +16,7 @@ export type OverviewStats = {
   businessOwnerCount: number;
   openSlotCount: number;
   liveListingCount: number;
+  openReportCount: number;
 };
 
 export type ApplicationStatusCounts = { pending: number; approved: number; rejected: number };
@@ -24,10 +25,13 @@ export type ApplicationStatusCounts = { pending: number; approved: number; rejec
  * The Admin landing page. Two rows below the header, each pairing a
  * "main" element with supporting detail beside it:
  *
- *   1. The four stat tiles (no "Total Invested" tile — the trend chart
- *      below already answers that, as its own always-visible endpoint
- *      label, so the number isn't dropped, just not duplicated) beside
- *      the package-allocation pie chart.
+ *   1. The stat tiles (no "Total Invested" tile — the trend chart below
+ *      already answers that, as its own always-visible endpoint label,
+ *      so the number isn't dropped, just not duplicated) beside the
+ *      package-allocation pie chart. Five tiles, not four — the odd one
+ *      out ("Open Reports", the Report/Complaint Inbox's own tie-in
+ *      here) spans both columns on its own row rather than leaving a
+ *      lopsided half-empty row in the 2-column grid.
  *   2. The invested-over-time trend chart beside the applications-by-
  *      status and members-by-track breakdowns, stacked in a column.
  *
@@ -97,14 +101,19 @@ export default function OverviewView({
             sublabel="Raising funds now"
             icon={BriefcaseIcon}
           />
+          <div className="sm:col-span-2">
+            <StatCard
+              label="Open Reports"
+              value={String(stats.openReportCount)}
+              href="/reports?status=open"
+              sublabel="Awaiting a first response"
+              icon={AlertIcon}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5 border border-gold/20 bg-panel/40 p-6">
           <h2 className="font-jakarta text-lg font-semibold text-cream">Investment Allocation by Package</h2>
-          <p className="mb-2 font-sans text-sm text-cream-dim">
-            AUREX Core vs. AUREX Ventures, as a share of total amount invested — directly useful for seeing where
-            money is actually flowing.
-          </p>
           <PackagePieChart allocation={packageAllocation} />
         </div>
       </div>

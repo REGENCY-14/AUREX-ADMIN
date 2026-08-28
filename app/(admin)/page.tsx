@@ -5,6 +5,7 @@ import { getMembers } from "@/lib/members";
 import { getMonthlyInvestedTrend, getInvestedByPackage } from "@/lib/investments";
 import { getInvestmentSlots } from "@/lib/investmentSlots";
 import { getBusinessListings } from "@/lib/businessListings";
+import { getOpenReportCount } from "@/lib/reports";
 
 export const metadata: Metadata = {
   title: "Overview | AUREX Admin",
@@ -30,6 +31,7 @@ export default function OverviewPage() {
     businessOwnerCount: members.filter((m) => m.track === "business").length,
     openSlotCount: getInvestmentSlots().filter((s) => s.status === "open").length,
     liveListingCount: getBusinessListings().filter((l) => l.status === "live").length,
+    openReportCount: getOpenReportCount(),
   };
 
   const applicationStatusCounts = {
