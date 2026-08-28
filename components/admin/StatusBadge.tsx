@@ -1,27 +1,42 @@
-// Generic status pill, same visual recipe the main site's own dashboard
-// badges use (components/dashboard/InvestmentSlotCard.tsx,
-// ListingStatusSection.tsx): rounded-full border, uppercase, tiny type.
-// Each domain (applications/members/slots/listings) maps its own status
-// enum to one of these four tones rather than this component knowing
-// about every possible status string.
+import type { ReactNode } from "react";
+import { CheckIcon, ClockIcon, XIcon } from "@/components/icons";
+
+// Generic status pill. Each domain (applications/members/slots/listings)
+// maps its own status enum to one of these four tones rather than this
+// component knowing about every possible status string — see each
+// view's own STATUS_TONE map.
 export type BadgeTone = "neutral" | "gold" | "success" | "danger";
 
-// "danger" reuses #f87171 — not a new color: it's the same red the main
-// site's own Leaderboard.tsx trend indicator and FormField.tsx error
-// state already use for "declining"/negative, just applied to admin
-// status pills instead of a trend arrow.
+// Filled pastel chip: a tinted background plus a saturated icon/text in
+// the same hue, per feedback asking every tag in the app to read this
+// way instead of the old bordered-outline pill. "danger" reuses #f87171
+// and "success" reuses #4ade80 — not new colors: the same red/green
+// pair this repo's own SegmentedBar already uses for
+// rejected/approved, just applied to a pill instead of a bar segment.
 const TONE_CLASSNAME: Record<BadgeTone, string> = {
-  neutral: "border-grid-line text-cream-dim",
-  gold: "border-gold/30 text-gold-bright",
-  success: "border-gold-bright/50 bg-gold-bright/10 text-gold-bright",
-  danger: "border-[#f87171]/30 text-[#f87171]",
+  neutral: "bg-cream-dim/15 text-cream-dim",
+  gold: "bg-gold/15 text-gold-bright",
+  success: "bg-[#4ade80]/15 text-[#4ade80]",
+  danger: "bg-[#f87171]/15 text-[#f87171]",
+};
+
+// One icon per tone (not per status label) — same "tone, not string"
+// boundary as TONE_CLASSNAME: neutral reads as "waiting", gold/success
+// both read as "affirmative" (gold = currently active, success = fully
+// resolved), danger reads as "stopped/rejected".
+const TONE_ICON: Record<BadgeTone, ReactNode> = {
+  neutral: <ClockIcon className="size-3" />,
+  gold: <CheckIcon className="size-3" />,
+  success: <CheckIcon className="size-3" />,
+  danger: <XIcon className="size-3" />,
 };
 
 export default function StatusBadge({ label, tone }: { label: string; tone: BadgeTone }) {
   return (
     <span
-      className={`inline-flex w-fit shrink-0 items-center rounded-full border px-2.5 py-0.5 font-jakarta text-[10px] font-medium uppercase tracking-wide ${TONE_CLASSNAME[tone]}`}
+      className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full px-3 py-1 font-jakarta text-xs font-medium ${TONE_CLASSNAME[tone]}`}
     >
+      {TONE_ICON[tone]}
       {label}
     </span>
   );
