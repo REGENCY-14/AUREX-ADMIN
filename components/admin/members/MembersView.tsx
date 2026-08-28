@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift } from "@/lib/motion";
 import { formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
-import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME } from "@/components/admin/tableStyles";
+import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
 import { SearchIcon } from "@/components/icons";
 import type { Member, MemberStatus, MemberTrack } from "@/lib/members";
 
@@ -25,6 +26,7 @@ const TRACK_LABEL: Record<MemberTrack, string> = {
 /** Member Management list — search by nickname or real name, same
  *  filter/sort-lives-in-the-client pattern as ApplicationsView. */
 export default function MembersView({ members }: { members: Member[] }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -75,7 +77,8 @@ export default function MembersView({ members }: { members: Member[] }) {
                   <motion.tr
                     key={member.id}
                     {...hoverLift}
-                    className={`border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
+                    onClick={handleRowClick(router, `/members/${member.id}`)}
+                    className={`cursor-pointer border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
                       member.status === "suspended" ? DANGER_ROW_CLASSNAME : ""
                     }`}
                   >

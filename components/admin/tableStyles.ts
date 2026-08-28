@@ -1,3 +1,5 @@
+import type { MouseEvent } from "react";
+
 /**
  * Shared table-row visual treatments, introduced per feedback with a
  * reference employee table: a flagged row (rejected/suspended/closed —
@@ -10,6 +12,26 @@
  * card/button corner radius).
  */
 export const DANGER_ROW_CLASSNAME = "border-l-2 border-l-[#f87171] bg-[#f87171]/5";
+
+/**
+ * Makes an entire row (Applications/Members/Reports — any list table
+ * where only the identity cell used to be clickable) navigate to a
+ * detail route, not just that one cell. A `<tr>` can't be a real `<a>`
+ * itself (invalid in the HTML table content model, and a CSS
+ * "stretched link" trick pulls that anchor out of the browser's table
+ * column-sizing calculation, collapsing the identity column) — so this
+ * stays a plain onClick + router.push on the row, with the identity
+ * cell's own real `<Link>` left in place for keyboard/screen-reader
+ * navigation. Guarded to bail out when the click actually landed on
+ * that link (or any other interactive element), so it doesn't push the
+ * same route into history twice.
+ */
+export function handleRowClick(router: { push: (href: string) => void }, href: string) {
+  return (e: MouseEvent) => {
+    if ((e.target as HTMLElement).closest("a, button")) return;
+    router.push(href);
+  };
+}
 
 const ICON_BUTTON_TONE_CLASSNAME = {
   gold: "bg-gold/10 text-gold-bright hover:bg-gold/20",

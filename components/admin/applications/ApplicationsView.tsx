@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift } from "@/lib/motion";
 import { formatDisplayDate } from "@/lib/formatters";
@@ -9,7 +10,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import Select from "@/components/admin/Select";
-import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME } from "@/components/admin/tableStyles";
+import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
 import { ArrowUpIcon, ArrowDownIcon } from "@/components/icons";
 import type { Application, ApplicationStatus, ApplicationTrack } from "@/lib/applications";
 
@@ -58,6 +59,7 @@ export default function ApplicationsView({
   applications: Application[];
   initialStatus?: ApplicationStatus | "all";
 }) {
+  const router = useRouter();
   const [trackFilter, setTrackFilter] = useState<ApplicationTrack | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">(initialStatus);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
@@ -134,7 +136,8 @@ export default function ApplicationsView({
                   <motion.tr
                     key={application.id}
                     {...hoverLift}
-                    className={`border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
+                    onClick={handleRowClick(router, `/applications/${application.id}`)}
+                    className={`cursor-pointer border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
                       application.status === "rejected" ? DANGER_ROW_CLASSNAME : ""
                     }`}
                   >
