@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { slideUp } from "@/lib/motion";
+import { useTheme } from "@/lib/theme";
 import { getPendingApplicationCount } from "@/lib/applications";
 import {
   GridIcon,
@@ -60,6 +61,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const pendingCount = getPendingApplicationCount();
   const headerRef = useRef<HTMLDivElement>(null);
+  // The dark-mode export reads as a near-white icon that vanishes against
+  // a light sidebar/topbar once the theme toggle (components/
+  // ThemeToggle.tsx) is switched — swap to the light-mode export the same
+  // way the main site's own BrandMark does, rather than leaving the logo
+  // one-theme-only.
+  const { theme } = useTheme();
+  const logoSrc = theme === "light" ? "/brand/logo-mark-about-icon.png" : "/brand/logo-mark-icon.png";
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -78,7 +86,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       <aside className="hidden shrink-0 border-r border-grid-line bg-panel/40 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:flex-col">
         <div className="flex items-center gap-2 border-b border-grid-line px-5 py-5">
           <div className="relative size-8 shrink-0 overflow-hidden">
-            <Image src="/brand/logo-mark-icon.png" alt="" fill sizes="32px" className="object-cover" />
+            <Image src={logoSrc} alt="" fill sizes="32px" className="object-cover" />
           </div>
           <span className="font-jakarta text-sm font-semibold text-cream">AUREX Admin</span>
         </div>
@@ -125,7 +133,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
             <div className="relative size-7 shrink-0 overflow-hidden">
-              <Image src="/brand/logo-mark-icon.png" alt="" fill sizes="28px" className="object-cover" />
+              <Image src={logoSrc} alt="" fill sizes="28px" className="object-cover" />
             </div>
             <span className="font-jakarta text-sm font-semibold text-cream">AUREX Admin</span>
           </Link>
