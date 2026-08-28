@@ -49,13 +49,27 @@ function isActive(pathname: string, href: string) {
 
 // The full "AUREX" lockup (icon + wordmark baked into one image, from
 // Figma), one export per theme — a real light/dark pair rather than the
-// old single icon-only mark reused unchanged in both themes. Each export
-// carries its own natural pixel size (they aren't identical aspect
-// ratios) so the <Image> below can be given real width/height and scaled
-// by CSS height alone, keeping it undistorted.
+// old single icon-only mark reused unchanged in both themes. Exported at
+// 4x (272x192 / 272x204, not the design frame's own 68x48 / 68x51) since
+// the frame's native size rendered blurry once scaled to fill actual
+// device pixels on any HiDPI screen — Next's <Image> never upscales past
+// a source's real resolution, so a too-small source just get stretched
+// by the browser instead. Each export carries its own natural pixel size
+// (they aren't identical aspect ratios) so the <Image> below can be
+// given real width/height and scaled by CSS height alone, undistorted.
+//
+// Both <Image>s below also pass `unoptimized` — the source PNGs' own
+// background was removed (see public/brand/ — Figma exported these with
+// a flat white/near-black backing, not real transparency) by feathering
+// alpha out to a transparent edge; Next's built-in image optimizer
+// re-encodes PNGs through a palette/quantized pipeline that collapsed
+// that feathered edge back into a hard opaque box, undoing the removal.
+// This is a small, fixed-size brand asset already exported at the exact
+// resolution it's shown at, so skipping the optimizer (meant for
+// resizing/format-negotiating arbitrary content images) costs nothing.
 const LOGO = {
-  light: { src: "/brand/logo-lockup-light.png", width: 68, height: 48 },
-  dark: { src: "/brand/logo-lockup-dark.png", width: 68, height: 51 },
+  light: { src: "/brand/logo-lockup-light.png", width: 272, height: 192 },
+  dark: { src: "/brand/logo-lockup-dark.png", width: 272, height: 204 },
 } as const;
 
 /**
@@ -67,7 +81,7 @@ const LOGO = {
 function UnsupportedViewport({ logo }: { logo: (typeof LOGO)[keyof typeof LOGO] }) {
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center gap-4 px-6 py-12 text-center md:hidden">
-      <Image src={logo.src} alt="AUREX" width={logo.width} height={logo.height} className="h-10 w-auto shrink-0" />
+      <Image src={logo.src} alt="AUREX" width={logo.width} height={logo.height} unoptimized className="h-10 w-auto shrink-0" />
       <AlertIcon className="size-7 text-gold-bright" />
       <h1 className="font-jakarta text-lg font-semibold text-cream">Tablet or Larger Required</h1>
       <p className="max-w-xs font-sans text-sm text-cream-dim">
@@ -149,7 +163,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             }`}
           >
             <Link href="/" className="flex items-center gap-2 overflow-hidden">
-              <Image src={logo.src} alt="AUREX" width={logo.width} height={logo.height} className="h-8 w-auto shrink-0" />
+              <Image src={logo.src} alt="AUREX" width={logo.width} height={logo.height} unoptimized className="h-8 w-auto shrink-0" />
               {!collapsed && <span className="whitespace-nowrap font-jakarta text-sm font-semibold text-cream">Admin</span>}
             </Link>
             <button
