@@ -5,6 +5,7 @@ import { hoverScale } from "@/lib/motion";
 import { motion } from "framer-motion";
 import { UploadIcon } from "@/components/icons";
 import Select from "@/components/admin/Select";
+import DatePicker from "@/components/admin/DatePicker";
 import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
 import type { Member } from "@/lib/members";
 
@@ -112,7 +113,7 @@ export default function InvestmentForm({
 
         <label className={LABEL_CLASSNAME}>
           <span className={LABEL_TEXT_CLASSNAME}>Date Invested</span>
-          <input type="date" value={values.dateInvested} onChange={(e) => set("dateInvested", e.target.value)} className={INPUT_CLASSNAME} />
+          <DatePicker value={values.dateInvested} onChange={(v) => set("dateInvested", v)} ariaLabel="Date invested" />
         </label>
       </div>
 

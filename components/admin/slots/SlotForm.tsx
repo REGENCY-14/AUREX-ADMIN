@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Select from "@/components/admin/Select";
+import DatePicker from "@/components/admin/DatePicker";
 import type { BusinessListing } from "@/lib/businessListings";
 import type { InvestmentSlot, SlotPackage } from "@/lib/investmentSlots";
 
@@ -129,11 +130,11 @@ export default function SlotForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className={LABEL_CLASSNAME}>
           <span className={LABEL_TEXT_CLASSNAME}>Opens</span>
-          <input type="date" value={values.opensAt} onChange={(e) => set("opensAt", e.target.value)} className={INPUT_CLASSNAME} />
+          <DatePicker value={values.opensAt} onChange={(v) => set("opensAt", v)} ariaLabel="Opens on" />
         </label>
         <label className={LABEL_CLASSNAME}>
           <span className={LABEL_TEXT_CLASSNAME}>Closes</span>
-          <input type="date" value={values.closesAt} onChange={(e) => set("closesAt", e.target.value)} className={INPUT_CLASSNAME} />
+          <DatePicker value={values.closesAt} onChange={(v) => set("closesAt", v)} ariaLabel="Closes on" />
         </label>
       </div>
 
