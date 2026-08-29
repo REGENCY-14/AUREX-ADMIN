@@ -85,13 +85,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
             No AnimatedBackground here, unlike the main site's root layout:
             per the admin brief, decorative ambient background vectors are
-            reserved for the (not-yet-built) login screen only, not the
-            list/table-heavy screens every other admin page is. */}
+            reserved for the login/forgot-password/reset-password screens
+            (see components/auth/AuthCard.tsx, the one place that mounts
+            it), not the list/table-heavy screens every other admin page
+            is. */}
         <MotionConfig reducedMotion="user">
           <PageTransition>{children}</PageTransition>
           {/* Fixed to the viewport, outside the (admin) shell, so it's
-              available on every screen (including a future login page),
-              same reasoning as the main site's own placement. */}
+              available on every screen including the auth pages, same
+              reasoning as the main site's own placement. */}
           <ThemeToggle />
         </MotionConfig>
       </body>

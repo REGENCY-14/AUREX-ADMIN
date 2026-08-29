@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useTheme } from "@/lib/theme";
+import BrandLogo from "@/components/BrandLogo";
 import { useSidebarCollapsed } from "@/lib/sidebarState";
+import { useSession } from "@/lib/auth";
 import { getPendingApplicationCount } from "@/lib/applications";
 import { getOpenReportCount } from "@/lib/reports";
 import {
@@ -47,41 +47,16 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-// The full "AUREX" lockup (icon + wordmark baked into one image, from
-// Figma), one export per theme — a real light/dark pair rather than the
-// old single icon-only mark reused unchanged in both themes. Exported at
-// 4x (272x192 / 272x204, not the design frame's own 68x48 / 68x51) since
-// the frame's native size rendered blurry once scaled to fill actual
-// device pixels on any HiDPI screen — Next's <Image> never upscales past
-// a source's real resolution, so a too-small source just get stretched
-// by the browser instead. Each export carries its own natural pixel size
-// (they aren't identical aspect ratios) so the <Image> below can be
-// given real width/height and scaled by CSS height alone, undistorted.
-//
-// Both <Image>s below also pass `unoptimized` — the source PNGs' own
-// background was removed (see public/brand/ — Figma exported these with
-// a flat white/near-black backing, not real transparency) by feathering
-// alpha out to a transparent edge; Next's built-in image optimizer
-// re-encodes PNGs through a palette/quantized pipeline that collapsed
-// that feathered edge back into a hard opaque box, undoing the removal.
-// This is a small, fixed-size brand asset already exported at the exact
-// resolution it's shown at, so skipping the optimizer (meant for
-// resizing/format-negotiating arbitrary content images) costs nothing.
-const LOGO = {
-  light: { src: "/brand/logo-lockup-light.png", width: 272, height: 192 },
-  dark: { src: "/brand/logo-lockup-dark.png", width: 272, height: 204 },
-} as const;
-
 /**
  * Swapped in below `md` (phone-width screens) instead of the real shell
  * — see AdminShell's own doc comment for why. Deliberately minimal: no
  * nav, no actions, nothing for a phone user to reach for, just the brand
  * mark and a plain explanation of what to do instead.
  */
-function UnsupportedViewport({ logo }: { logo: (typeof LOGO)[keyof typeof LOGO] }) {
+function UnsupportedViewport() {
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center gap-4 px-6 py-12 text-center md:hidden">
-      <Image src={logo.src} alt="AUREX" width={logo.width} height={logo.height} unoptimized className="h-10 w-auto shrink-0" />
+      <BrandLogo className="h-10 w-auto shrink-0" />
       <AlertIcon className="size-7 text-gold-bright" />
       <h1 className="font-jakarta text-lg font-semibold text-cream">Tablet or Larger Required</h1>
       <p className="max-w-xs font-sans text-sm text-cream-dim">
@@ -115,9 +90,11 @@ function UnsupportedViewport({ logo }: { logo: (typeof LOGO)[keyof typeof LOGO] 
  * Deliberately no AnimatedBackground here (see that component's own
  * comment) — this shell wraps every list/table-heavy admin screen.
  *
- * "Admin User" + Log out are stubs: there's no real auth/session yet (per
- * the brief, that's separate work) — this just proves out where that
- * information will eventually go.
+ * The footer identity + Log out button now read from lib/auth.ts's
+ * stubbed session (see AuthGate, which is what actually keeps a signed-
+ * out visitor from reaching this shell in the first place) rather than
+ * being static stand-ins — Log out really clears that session and sends
+ * the admin back to /login.
  *
  * Below `md` (phone-width screens), this shell doesn't render its
  * children at all — it swaps in `UnsupportedViewport` instead. Per
@@ -134,22 +111,17 @@ function UnsupportedViewport({ logo }: { logo: (typeof LOGO)[keyof typeof LOGO] 
  */
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
+  const { session, logout } = useSession();
   const badgeCounts = {
     pendingApplications: getPendingApplicationCount(),
     openReports: getOpenReportCount(),
   } as const;
-  // Swaps the logo lockup itself per theme (see LOGO above) rather than
-  // reusing one icon-only mark in both — same reasoning as the main
-  // site's own BrandMark: a mark tuned for one background reads wrong
-  // (or vanishes) against the other once the theme toggle (components/
-  // ThemeToggle.tsx) is switched.
-  const { theme } = useTheme();
-  const logo = LOGO[theme];
 
   return (
     <>
-      <UnsupportedViewport logo={logo} />
+      <UnsupportedViewport />
 
       <div className="hidden min-h-screen w-full flex-1 flex-row md:flex">
         <aside
@@ -163,7 +135,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             }`}
           >
             <Link href="/" className="flex items-center gap-2 overflow-hidden">
-              <Image src={logo.src} alt="AUREX" width={logo.width} height={logo.height} unoptimized className="h-8 w-auto shrink-0" />
+              <BrandLogo className="h-8 w-auto shrink-0" />
               {!collapsed && <span className="whitespace-nowrap font-jakarta text-sm font-semibold text-cream">Admin</span>}
             </Link>
             <button
@@ -214,16 +186,20 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             }`}
           >
             {!collapsed && (
-              <div className="flex flex-col gap-0.5">
-                <span className="font-jakarta text-sm font-medium text-cream">Admin User</span>
-                <span className="font-sans text-xs text-cream-dim">admin@aurexgh.com</span>
+              <div className="flex flex-col gap-0.5 overflow-hidden">
+                <span className="truncate font-jakarta text-sm font-medium text-cream">Admin</span>
+                <span className="truncate font-sans text-xs text-cream-dim">{session?.email ?? ""}</span>
               </div>
             )}
             <button
               type="button"
               aria-label="Log out"
-              title={collapsed ? "Log out" : undefined}
-              className="text-cream-dim transition-colors hover:text-gold-bright"
+              title="Log out"
+              onClick={() => {
+                logout();
+                router.replace("/login");
+              }}
+              className="shrink-0 text-cream-dim transition-colors hover:text-gold-bright"
             >
               <LogOutIcon className="size-4" />
             </button>
