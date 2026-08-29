@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import BrandLogo from "@/components/BrandLogo";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { useSidebarCollapsed } from "@/lib/sidebarState";
 import { useSession } from "@/lib/auth";
 import { getPendingApplicationCount } from "@/lib/applications";
@@ -93,8 +95,11 @@ function UnsupportedViewport() {
  * The footer identity + Log out button now read from lib/auth.ts's
  * stubbed session (see AuthGate, which is what actually keeps a signed-
  * out visitor from reaching this shell in the first place) rather than
- * being static stand-ins — Log out really clears that session and sends
- * the admin back to /login.
+ * being static stand-ins. Log out itself goes through the same shared
+ * ConfirmDialog every other consequential admin action uses (approve/
+ * reject, publish/close-early, delete) rather than firing immediately on
+ * click — a stray click here would otherwise drop whatever the admin was
+ * in the middle of doing.
  *
  * Below `md` (phone-width screens), this shell doesn't render its
  * children at all — it swaps in `UnsupportedViewport` instead. Per
@@ -114,6 +119,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const { session, logout } = useSession();
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const badgeCounts = {
     pendingApplications: getPendingApplicationCount(),
     openReports: getOpenReportCount(),
@@ -195,10 +201,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               type="button"
               aria-label="Log out"
               title="Log out"
-              onClick={() => {
-                logout();
-                router.replace("/login");
-              }}
+              onClick={() => setLogoutConfirmOpen(true)}
               className="shrink-0 text-cream-dim transition-colors hover:text-gold-bright"
             >
               <LogOutIcon className="size-4" />
@@ -208,6 +211,19 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
         <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col">{children}</main>
       </div>
+
+      <ConfirmDialog
+        isOpen={logoutConfirmOpen}
+        onClose={() => setLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          logout();
+          router.replace("/login");
+        }}
+        title="Log out?"
+        description="You'll need to sign in again to get back into AUREX Admin."
+        confirmLabel="Log Out"
+        tone="gold"
+      />
     </>
   );
 }
