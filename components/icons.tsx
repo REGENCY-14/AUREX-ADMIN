@@ -317,6 +317,20 @@ export function LockIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function UserIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <circle cx="10" cy="6.5" r="3.25" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M3.5 17C3.5 13.41 6.41 10.5 10 10.5C13.59 10.5 16.5 13.41 16.5 17"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function EyeIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
