@@ -64,12 +64,20 @@ export default function LoginView() {
       title="Welcome back"
       description="Sign in to manage AUREX's members, investments, and reports."
       footer={
-        <>
-          Forgot your password?{" "}
-          <Link href="/forgot-password" className="text-gold-bright transition-colors hover:text-gold-light">
-            Reset it
-          </Link>
-        </>
+        <div className="flex flex-col gap-1.5">
+          <span>
+            Forgot your password?{" "}
+            <Link href="/forgot-password" className="text-gold-bright transition-colors hover:text-gold-light">
+              Reset it
+            </Link>
+          </span>
+          <span>
+            Don&rsquo;t have an account?{" "}
+            <Link href="/register" className="text-gold-bright transition-colors hover:text-gold-light">
+              Create one
+            </Link>
+          </span>
+        </div>
       }
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
