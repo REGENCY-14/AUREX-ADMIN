@@ -64,20 +64,12 @@ export default function LoginView() {
       title="Welcome back"
       description="Sign in to manage AUREX's members, investments, and reports."
       footer={
-        <div className="flex flex-col gap-1.5">
-          <span>
-            Forgot your password?{" "}
-            <Link href="/forgot-password" className="text-gold-bright transition-colors hover:text-gold-light">
-              Reset it
-            </Link>
-          </span>
-          <span>
-            Don&rsquo;t have an account?{" "}
-            <Link href="/register" className="text-gold-bright transition-colors hover:text-gold-light">
-              Create one
-            </Link>
-          </span>
-        </div>
+        <>
+          Don&rsquo;t have an account?{" "}
+          <Link href="/register" className="text-gold-bright transition-colors hover:text-gold-light">
+            Create one
+          </Link>
+        </>
       }
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
@@ -98,6 +90,11 @@ export default function LoginView() {
 
         <AuthField
           label="Password"
+          labelAction={
+            <Link href="/forgot-password" className="font-sans text-xs text-gold-bright transition-colors hover:text-gold-light">
+              Forgot password?
+            </Link>
+          }
           icon={<LockIcon className="size-4" />}
           type={showPassword ? "text" : "password"}
           autoComplete="current-password"

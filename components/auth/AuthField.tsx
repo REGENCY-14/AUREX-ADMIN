@@ -10,6 +10,7 @@ import type { InputHTMLAttributes, ReactNode } from "react";
  */
 export default function AuthField({
   label,
+  labelAction,
   icon,
   trailing,
   error,
@@ -17,6 +18,7 @@ export default function AuthField({
   ...inputProps
 }: {
   label: string;
+  labelAction?: ReactNode;
   icon: ReactNode;
   trailing?: ReactNode;
   error?: string;
@@ -24,7 +26,10 @@ export default function AuthField({
 } & InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="font-sans text-xs uppercase tracking-wide text-cream-dim">{label}</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-sans text-xs uppercase tracking-wide text-cream-dim">{label}</span>
+        {labelAction}
+      </div>
       <div className="relative flex items-center">
         <span className="pointer-events-none absolute left-3 flex text-cream-dim">{icon}</span>
         <input
