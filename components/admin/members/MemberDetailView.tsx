@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { scrollReveal, hoverScale } from "@/lib/motion";
@@ -8,11 +8,18 @@ import { formatDisplayDate, formatGhs } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import { ArrowRightIcon } from "@/components/icons";
-import type { Member, MemberStatus } from "@/lib/members";
-import type { InvestmentRecord } from "@/lib/investments";
-import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
-import { LISTING_STATUS_LABEL, getFundingPercent, type BusinessListing, type ListingStatus } from "@/lib/businessListings";
+import { ArrowRightIcon, SpinnerIcon } from "@/components/icons";
+import { useSession } from "@/lib/auth";
+import { fetchMemberById, type Member, type MemberStatus } from "@/lib/members";
+import { getInvestmentRecordsByMember, type InvestmentRecord } from "@/lib/investments";
+import { getInvestmentSlots, SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
+import {
+  getBusinessListingById,
+  LISTING_STATUS_LABEL,
+  getFundingPercent,
+  type BusinessListing,
+  type ListingStatus,
+} from "@/lib/businessListings";
 
 const STATUS_TONE: Record<MemberStatus, BadgeTone> = { active: "gold", suspended: "danger" };
 const LISTING_TONE: Record<ListingStatus, BadgeTone> = {
@@ -36,34 +43,70 @@ function slotLabel(slot: InvestmentSlot | undefined) {
   return SLOT_PACKAGE_LABEL[slot.package];
 }
 
-/**
- * The Member detail screen — application-style personal details plus,
- * per the brief, either investment history (Investors) or listing status
- * (Business Owners), never both. Suspend/Reactivate mutates local state
- * only, same stubbed-action caveat as ApplicationDetailView.
- */
-export default function MemberDetailView({
-  member,
-  investmentRecords,
-  slotsById,
-  listing,
-}: {
-  member: Member;
-  investmentRecords: InvestmentRecord[];
-  slotsById: Record<string, InvestmentSlot>;
-  listing?: BusinessListing;
-}) {
-  const [status, setStatus] = useState<MemberStatus>(member.status);
+export default function MemberDetailView({ id }: { id: string }) {
+  const { session } = useSession();
+  const [member, setMember] = useState<Member | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState<MemberStatus>("active");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [confirmToggleOpen, setConfirmToggleOpen] = useState(false);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    fetchMemberById(id).then((result) => {
+      if (cancelled) return;
+      setMember(result ?? null);
+      setStatus(result?.status ?? "active");
+      setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, id]);
+
+  const investmentRecords: InvestmentRecord[] = member ? getInvestmentRecordsByMember(member.id) : [];
+  const slotsById = useMemo(
+    () =>
+      getInvestmentSlots().reduce<Record<string, InvestmentSlot>>((acc, slot) => {
+        acc[slot.id] = slot;
+        return acc;
+      }, {}),
+    [],
+  );
+  const listing: BusinessListing | undefined = member?.businessListingId
+    ? getBusinessListingById(member.businessListingId)
+    : undefined;
 
   const totalInvested = investmentRecords.reduce((sum, r) => sum + r.amountInvestedGhs, 0);
 
   function toggleStatus() {
+    if (!member) return;
     const next: MemberStatus = status === "active" ? "suspended" : "active";
     setStatus(next);
     setActionMessage(
       `${member.nickname} was ${next === "suspended" ? "suspended" : "reactivated"}. Stubbed: nothing is persisted (no backend yet).`
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 font-sans text-sm text-cream-dim">
+        <SpinnerIcon className="size-5 animate-spin" /> Loading member…
+      </div>
+    );
+  }
+
+  if (!member) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+        <p className="font-sans text-sm text-cream-dim">This member couldn&apos;t be found.</p>
+        <Link href="/members" className="font-jakarta text-sm font-medium text-gold-bright underline-offset-4 hover:underline">
+          Back to members
+        </Link>
+      </div>
     );
   }
 

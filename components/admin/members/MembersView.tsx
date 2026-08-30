@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -11,8 +11,9 @@ import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import EmptyState from "@/components/admin/EmptyState";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
-import { SearchIcon, UsersIcon } from "@/components/icons";
-import type { Member, MemberStatus, MemberTrack } from "@/lib/members";
+import { SearchIcon, SpinnerIcon, UsersIcon } from "@/components/icons";
+import { useSession } from "@/lib/auth";
+import { fetchMembers, type Member, type MemberStatus, type MemberTrack } from "@/lib/members";
 
 const STATUS_TONE: Record<MemberStatus, BadgeTone> = {
   active: "gold",
@@ -24,11 +25,28 @@ const TRACK_LABEL: Record<MemberTrack, string> = {
   business: "Business Owner",
 };
 
-/** Member Management list — search by nickname or real name, same
- *  filter/sort-lives-in-the-client pattern as ApplicationsView. */
-export default function MembersView({ members }: { members: Member[] }) {
+export default function MembersView() {
   const router = useRouter();
+  const { session } = useSession();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    fetchMembers().then((rows) => {
+      if (!cancelled) {
+        setMembers(rows);
+        setIsLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -56,7 +74,14 @@ export default function MembersView({ members }: { members: Member[] }) {
         />
       </motion.div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <motion.div
+          variants={staggerItem}
+          className="flex items-center justify-center gap-2 border border-grid-line bg-panel/20 p-8 font-sans text-sm text-cream-dim"
+        >
+          <SpinnerIcon className="size-4 animate-spin" /> Loading members…
+        </motion.div>
+      ) : filtered.length === 0 ? (
         members.length === 0 ? (
           <EmptyState
             icon={UsersIcon}

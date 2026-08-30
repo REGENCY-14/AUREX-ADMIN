@@ -8,6 +8,8 @@
  * status per the brief, rather than duplicating listing fields here).
  */
 
+import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
+
 export type MemberTrack = "investor" | "business";
 export type MemberStatus = "active" | "suspended";
 
@@ -153,4 +155,53 @@ export function getMemberById(id: string): Member | undefined {
  *  active only (a suspended member can't have new investments recorded). */
 export function getActiveInvestors(): Member[] {
   return MEMBERS.filter((m) => m.track === "investor" && m.status === "active");
+}
+
+type MemberApiRow = {
+  id: string;
+  nickname: string | null;
+  firstname: string | null;
+  lastname: string | null;
+  email: string | null;
+  phone: string | null;
+  status: "active" | "pending" | "suspended";
+  is_active: boolean;
+  track: MemberTrack;
+  joined_at: string;
+  country: string | null;
+  business_name: string | null;
+};
+
+function toMember(row: MemberApiRow): Member {
+  return {
+    id: row.id,
+    nickname: row.nickname ?? "—",
+    realName: [row.firstname, row.lastname].filter(Boolean).join(" ") || "—",
+    track: row.track,
+    email: row.email ?? "",
+    phone: row.phone ?? "",
+    country: row.country ?? "",
+    joinDate: row.joined_at,
+    status: row.is_active && row.status !== "suspended" ? "active" : "suspended",
+  };
+}
+
+export async function fetchMembers(filters: { track?: MemberTrack } = {}): Promise<Member[]> {
+  const params = new URLSearchParams({ limit: "100" });
+  if (filters.track) params.set("track", filters.track);
+  try {
+    const { data } = await apiFetchPaginated<MemberApiRow>(`/members?${params.toString()}`);
+    return data.map(toMember);
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchMemberById(id: string): Promise<Member | undefined> {
+  try {
+    const { data } = await apiFetch<MemberApiRow>(`/members/${id}`);
+    return toMember(data);
+  } catch {
+    return undefined;
+  }
 }
