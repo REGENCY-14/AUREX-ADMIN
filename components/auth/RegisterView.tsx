@@ -8,9 +8,16 @@ import AuthCard from "@/components/auth/AuthCard";
 import AuthField from "@/components/auth/AuthField";
 import { hoverScale } from "@/lib/motion";
 import { useSession } from "@/lib/auth";
-import { UserIcon, MailIcon, LockIcon, EyeIcon, EyeOffIcon, SpinnerIcon, CheckIcon } from "@/components/icons";
+import { UserIcon, MailIcon, LockIcon, KeyIcon, EyeIcon, EyeOffIcon, SpinnerIcon, CheckIcon } from "@/components/icons";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Purely a client-side gate on a page that doesn't create anything real
+// to begin with (see the module comment below) — not a security
+// boundary, just a way to keep this demo screen from reading as an open
+// "anyone can become an admin" form. Visible in the bundle to anyone who
+// looks, same as any other client-only check in this app.
+const SECRET_CODE = "NARUTO";
 
 /**
  * A UI-only demo of what a register screen would look like — there's no
@@ -18,10 +25,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * login/logout are real, but this app doesn't support self-service admin
  * signup), and admin accounts aren't the kind of thing you'd normally
  * want anyone to be able to create for themselves anyway. So this
- * validates the form like the other auth screens, then mocks a delay
- * and shows an honest "there's no real signup behind this yet" success
- * state instead of fabricating a session — same spirit as
- * ForgotPasswordView's mocked "check your email" screen.
+ * validates the form like the other auth screens — including a secret
+ * code gate, since this route isn't behind AuthGate like everything
+ * under (admin) is — then mocks a delay and shows an honest "there's no
+ * real signup behind this yet" success state instead of fabricating a
+ * session — same spirit as ForgotPasswordView's mocked "check your
+ * email" screen.
  */
 export default function RegisterView() {
   const router = useRouter();
@@ -31,6 +40,7 @@ export default function RegisterView() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [secretCode, setSecretCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +54,10 @@ export default function RegisterView() {
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (secretCode.trim().toUpperCase() !== SECRET_CODE) {
+      setError("That's not the right secret code.");
+      return;
+    }
     if (!name.trim()) {
       setError("Enter your full name.");
       return;
@@ -112,6 +126,17 @@ export default function RegisterView() {
         {error && (
           <div className="border border-[#f87171]/30 bg-[#f87171]/5 p-3 font-sans text-sm text-[#f87171]">{error}</div>
         )}
+
+        <AuthField
+          label="Secret Code"
+          icon={<KeyIcon className="size-4" />}
+          type="text"
+          autoComplete="off"
+          placeholder="Ask an admin for this"
+          value={secretCode}
+          onChange={(e) => setSecretCode(e.target.value)}
+          required
+        />
 
         <AuthField
           label="Full Name"

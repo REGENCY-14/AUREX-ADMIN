@@ -331,6 +331,15 @@ export function UserIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function KeyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <circle cx="6.5" cy="13.5" r="3.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8.9 11.1L16.5 3.5M13.5 6.5L16 4M15 8.5L17.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function EyeIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
