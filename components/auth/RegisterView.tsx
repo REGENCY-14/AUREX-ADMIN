@@ -8,33 +8,14 @@ import AuthCard from "@/components/auth/AuthCard";
 import AuthField from "@/components/auth/AuthField";
 import { hoverScale } from "@/lib/motion";
 import { useSession } from "@/lib/auth";
+import { ApiError } from "@/lib/api/client";
 import { UserIcon, MailIcon, LockIcon, KeyIcon, EyeIcon, EyeOffIcon, SpinnerIcon, CheckIcon } from "@/components/icons";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Purely a client-side gate on a page that doesn't create anything real
-// to begin with (see the module comment below) — not a security
-// boundary, just a way to keep this demo screen from reading as an open
-// "anyone can become an admin" form. Visible in the bundle to anyone who
-// looks, same as any other client-only check in this app.
-const SECRET_CODE = "NARUTO";
-
-/**
- * A UI-only demo of what a register screen would look like — there's no
- * `/auth/register` route on Aurex-backend to call (see lib/auth.ts:
- * login/logout are real, but this app doesn't support self-service admin
- * signup), and admin accounts aren't the kind of thing you'd normally
- * want anyone to be able to create for themselves anyway. So this
- * validates the form like the other auth screens — including a secret
- * code gate, since this route isn't behind AuthGate like everything
- * under (admin) is — then mocks a delay and shows an honest "there's no
- * real signup behind this yet" success state instead of fabricating a
- * session — same spirit as ForgotPasswordView's mocked "check your
- * email" screen.
- */
 export default function RegisterView() {
   const router = useRouter();
-  const { isAuthenticated } = useSession();
+  const { isAuthenticated, registerAdmin } = useSession();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -52,12 +33,8 @@ export default function RegisterView() {
     if (isAuthenticated) router.replace("/");
   }, [isAuthenticated, router]);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (secretCode.trim().toUpperCase() !== SECRET_CODE) {
-      setError("That's not the right secret code.");
-      return;
-    }
     if (!name.trim()) {
       setError("Enter your full name.");
       return;
@@ -66,22 +43,32 @@ export default function RegisterView() {
       setError("Enter a valid email address.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
       return;
     }
     if (password !== confirmPassword) {
       setError("Passwords don't match.");
       return;
     }
+    if (!secretCode.trim()) {
+      setError("Enter the secret code.");
+      return;
+    }
     setError(null);
     setSubmitting(true);
-    // Same deliberate delay as the other auth forms — there's no network
-    // round trip here to wait on for real, see the module comment above.
-    window.setTimeout(() => {
-      setSubmitting(false);
+    try {
+      const result = await registerAdmin({ name: name.trim(), email, password, pincode: secretCode });
+      if (result.activated) {
+        router.replace("/");
+        return;
+      }
       setDone(true);
-    }, 500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (isAuthenticated) return null;
@@ -90,7 +77,7 @@ export default function RegisterView() {
     return (
       <AuthCard
         title="Request received"
-        description={`There's no live sign-up yet — an admin will need to set up ${email} before you can sign in with it.`}
+        description={`An existing admin needs to approve ${email} before you can sign in with it. We'll email you once it's active.`}
       >
         <div className="flex flex-col items-center gap-4 py-2">
           <span className="flex size-11 items-center justify-center border border-gold/30 bg-gold/10 text-gold-bright">

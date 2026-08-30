@@ -69,6 +69,15 @@ function setSession(next: Session | null) {
 
 type LoginResponse = { accessToken: string; refreshToken: string; sessionId?: string; user: SessionUser };
 
+export type RegisterAdminParams = { name: string; email: string; password: string; pincode: string };
+
+type RegisterAdminResponse = {
+  accessToken?: string;
+  refreshToken?: string;
+  sessionId?: string;
+  user: SessionUser;
+};
+
 /**
  * Real admin session, backed by Aurex-backend's /auth/login and /auth/logout.
  * Only role: "admin" accounts are accepted here — anyone else authenticates
@@ -102,11 +111,24 @@ export function useSession() {
     setSession(null);
   }
 
+  async function registerAdmin(params: RegisterAdminParams): Promise<{ activated: boolean }> {
+    const { data } = await apiFetch<RegisterAdminResponse>("/auth/register-admin", {
+      method: "POST",
+      body: params,
+    });
+    if (data.accessToken) {
+      setSession({ sessionId: data.sessionId, user: data.user });
+      return { activated: true };
+    }
+    return { activated: false };
+  }
+
   return {
     session,
     isAuthenticated: session !== null,
     login,
     logout,
+    registerAdmin,
   };
 }
 
