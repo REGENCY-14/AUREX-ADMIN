@@ -67,7 +67,7 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
-    getApplications(session.accessToken).then((rows) => {
+    getApplications().then((rows) => {
       if (!cancelled) {
         setApplications(rows);
         setIsLoading(false);

@@ -122,13 +122,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [pendingApplications, setPendingApplications] = useState(0);
 
-  // Client-side fetch, not a server-fetched prop: the access token this
-  // call needs only ever exists in the browser's session store (lib/auth.ts),
-  // never on the server that renders this route's layout.
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    void getPendingApplicationCount(session.accessToken).then((count) => {
+    void getPendingApplicationCount().then((count) => {
       if (!cancelled) setPendingApplications(count);
     });
     return () => {

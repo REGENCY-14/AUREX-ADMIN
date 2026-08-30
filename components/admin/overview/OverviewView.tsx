@@ -66,13 +66,10 @@ export default function OverviewView({
   const [pendingApplications, setPendingApplications] = useState(0);
   const [applicationStatusCounts, setApplicationStatusCounts] = useState(EMPTY_APPLICATION_STATUS_COUNTS);
 
-  // Fetched here (client-side) rather than passed down as a prop from the
-  // server page — the access token this needs only ever exists in the
-  // browser's session store (lib/auth.ts).
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    Promise.all([getApplications(session.accessToken), getPendingApplicationCount(session.accessToken)]).then(
+    Promise.all([getApplications(), getPendingApplicationCount()]).then(
       ([applications, pending]) => {
         if (cancelled) return;
         setPendingApplications(pending);

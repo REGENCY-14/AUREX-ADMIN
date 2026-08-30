@@ -70,7 +70,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
-    getApplicationById(session.accessToken, id).then((result) => {
+    getApplicationById(id).then((result) => {
       if (cancelled) return;
       setApplication(result ?? null);
       setStatus(result?.status ?? "pending");
@@ -88,7 +88,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
     if (!application || !session) return;
     setIsSubmitting(true);
     try {
-      await approveApplication(session.accessToken, application.id);
+      await approveApplication(application.id);
       setStatus("approved");
       setShowRejectForm(false);
       setActionFailed(false);
@@ -106,7 +106,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
     if (!application || !session) return;
     setIsSubmitting(true);
     try {
-      await rejectApplication(session.accessToken, application.id, rejectionReason || undefined);
+      await rejectApplication(application.id, rejectionReason || undefined);
       setStatus("rejected");
       setShowRejectForm(false);
       setActionFailed(false);

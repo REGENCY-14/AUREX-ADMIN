@@ -42,6 +42,7 @@ export async function apiFetch<T = unknown>(
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
     cache: "no-store",
+    credentials: "include",
     headers: { "Content-Type": "application/json", ...authHeaders(options.accessToken) },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
@@ -54,6 +55,7 @@ export async function apiFetchPaginated<T = unknown>(
 ): Promise<PaginatedEnvelope<T>> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     cache: "no-store",
+    credentials: "include",
     headers: { ...authHeaders(options.accessToken) },
   });
   return parse<PaginatedEnvelope<T>>(res);

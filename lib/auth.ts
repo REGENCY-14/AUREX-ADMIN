@@ -11,8 +11,6 @@ export type SessionUser = {
 };
 
 export type Session = {
-  accessToken: string;
-  refreshToken: string;
   sessionId?: string;
   user: SessionUser;
 };
@@ -86,7 +84,7 @@ export function useSession() {
     if (data.user.role !== "admin") {
       throw new ApiError("This account doesn't have admin access.", 403);
     }
-    setSession({ accessToken: data.accessToken, refreshToken: data.refreshToken, sessionId: data.sessionId, user: data.user });
+    setSession({ sessionId: data.sessionId, user: data.user });
   }
 
   async function logout(): Promise<void> {
@@ -95,7 +93,6 @@ export function useSession() {
       try {
         await apiFetch("/auth/logout", {
           method: "POST",
-          accessToken: current.accessToken,
           body: { sessionId: current.sessionId },
         });
       } catch {
@@ -111,4 +108,17 @@ export function useSession() {
     login,
     logout,
   };
+}
+
+export async function restoreSession(): Promise<void> {
+  try {
+    const { data } = await apiFetch<SessionUser>("/users/me");
+    if (data.role !== "admin") {
+      setSession(null);
+      return;
+    }
+    setSession({ sessionId: getSnapshot()?.sessionId, user: data });
+  } catch {
+    setSession(null);
+  }
 }
