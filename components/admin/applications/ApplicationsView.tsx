@@ -31,12 +31,14 @@ const STATUS_LABEL: Record<ApplicationStatus, string> = {
 const TRACK_LABEL: Record<ApplicationTrack, string> = {
   investor: "Investor",
   business: "Business Owner",
+  admin: "Admin",
 };
 
 const TRACK_OPTIONS = [
   { value: "all", label: "All Tracks" },
   { value: "investor", label: "Investor" },
   { value: "business", label: "Business Owner" },
+  { value: "admin", label: "Admin" },
 ];
 
 const STATUS_OPTIONS = [
@@ -96,7 +98,10 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
       animate="animate"
       className="flex flex-1 flex-col gap-6 px-4 py-8 sm:px-6 lg:px-10"
     >
-      <PageHeader title="Application Review Queue" description="Review and decide on investor and business owner applications." />
+      <PageHeader
+        title="Application Review Queue"
+        description="Review and decide on investor, business owner, and admin applications."
+      />
 
       <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
         <Select
@@ -138,7 +143,7 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
           <EmptyState
             icon={InboxIcon}
             title="No applications yet"
-            description="Investor and business owner applications will show up here as soon as people start applying."
+            description="Investor, business owner, and admin applications will show up here as soon as people start applying."
           />
         ) : (
           <EmptyState

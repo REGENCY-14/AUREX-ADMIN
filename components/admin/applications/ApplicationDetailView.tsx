@@ -147,7 +147,9 @@ export default function ApplicationDetailView({ id }: { id: string }) {
 
       <PageHeader
         title={application.nickname}
-        description={`${application.track === "investor" ? "Investor" : "Business Owner"} application`}
+        description={`${
+          application.track === "investor" ? "Investor" : application.track === "business" ? "Business Owner" : "Admin"
+        } application`}
         action={<StatusBadge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} />}
       />
 
@@ -171,8 +173,10 @@ export default function ApplicationDetailView({ id }: { id: string }) {
           <Field label="Nickname" value={application.nickname} />
           <Field label="Full Name" value={application.realName} />
           <Field label="Email" value={application.email} />
-          <Field label="Phone" value={application.phone} />
-          <Field label="Country" value={application.country} />
+          {/* Admin applications don't collect a phone or country — no
+              point showing empty fields for a track that never has them. */}
+          {application.track !== "admin" && <Field label="Phone" value={application.phone} />}
+          {application.track !== "admin" && <Field label="Country" value={application.country} />}
           <Field label="Submitted" value={formatDisplayDate(application.submittedAt)} />
         </div>
       </motion.section>
@@ -291,8 +295,8 @@ export default function ApplicationDetailView({ id }: { id: string }) {
         onClose={() => setConfirmApproveOpen(false)}
         onConfirm={handleApprove}
         title="Approve this application?"
-        description={`${application.nickname} will be admitted to the platform as a${
-          application.track === "investor" ? "n investor" : " business owner"
+        description={`${application.nickname} will be admitted to the platform as ${
+          application.track === "investor" ? "an investor" : application.track === "business" ? "a business owner" : "an admin"
         }.`}
         confirmLabel="Approve"
         tone="gold"

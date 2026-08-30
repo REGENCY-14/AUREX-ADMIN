@@ -1,6 +1,12 @@
 import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
 
-export type ApplicationTrack = "investor" | "business";
+// "admin" isn't in Aurex-backend's documented /applications type enum yet
+// (investor/business only, per its Swagger docs) — this is here ahead of
+// that backend support, so this queue is ready to list/approve pending
+// admin sign-ups (see RegisterView's "request received" copy) the moment
+// it lands. Until then, filtering by "admin" here just won't find
+// anything.
+export type ApplicationTrack = "investor" | "business" | "admin";
 export type ApplicationStatus = "pending" | "approved" | "rejected";
 
 export type DocumentRef = { fileName: string; uploadedAt: string; url: string };
@@ -95,10 +101,14 @@ function findRejectionReason(logs: ApplicationLogApiRow[]): string | undefined {
 function toApplication(row: ApplicationApiRow, logs: ApplicationLogApiRow[] = []): Application {
   return {
     id: row.id,
-    nickname: row.nickname,
+    // An admin application has no nickname of its own — falls back to
+    // the applicant's name.
+    nickname: row.nickname || row.full_name,
     realName: row.full_name,
     email: row.email,
-    phone: `${row.phone_country} ${row.phone_number}`,
+    // Admin applications don't collect a phone number — only build this
+    // when both halves are actually present.
+    phone: row.phone_country && row.phone_number ? `${row.phone_country} ${row.phone_number}` : "",
     country: row.country_of_residence ?? row.country_of_operation ?? "",
     track: row.type,
     submittedAt: row.date_submitted,
