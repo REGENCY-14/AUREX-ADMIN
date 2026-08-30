@@ -42,7 +42,7 @@ export default function ResetPasswordView() {
 
   if (done) {
     return (
-      <AuthCard title="Password updated" description="Your password has been reset — sign in with your new one.">
+      <AuthCard title="Password updated" description="Your password has been reset. Sign in with your new one.">
         <div className="flex flex-col items-center gap-4 py-2">
           <span className="flex size-11 items-center justify-center border border-gold/30 bg-gold/10 text-gold-bright">
             <CheckIcon className="size-5" />

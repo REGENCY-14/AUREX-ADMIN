@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { staggerContainer, scrollReveal } from "@/lib/motion";
 import PageHeader from "@/components/admin/PageHeader";
 import StatCard from "@/components/admin/StatCard";
-import { InboxIcon, UsersIcon, LayersIcon, BriefcaseIcon, AlertIcon } from "@/components/icons";
+import { InboxIcon, UsersIcon, LayersIcon, BriefcaseIcon, BookIcon } from "@/components/icons";
 import TrendChart from "@/components/admin/overview/charts/TrendChart";
 import SegmentedBar from "@/components/admin/overview/charts/SegmentedBar";
 import PackagePieChart from "@/components/admin/overview/charts/PackagePieChart";
@@ -107,7 +107,7 @@ export default function OverviewView({
               value={String(stats.openReportCount)}
               href="/reports?status=open"
               sublabel="Awaiting a first response"
-              icon={AlertIcon}
+              icon={BookIcon}
             />
           </div>
         </div>

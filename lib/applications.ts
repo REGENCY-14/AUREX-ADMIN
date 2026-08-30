@@ -166,7 +166,7 @@ export const APPLICATIONS: Application[] = [
     track: "investor",
     submittedAt: "2026-08-15",
     status: "rejected",
-    rejectionReason: "ID document image unreadable — asked applicant to resubmit a clearer scan.",
+    rejectionReason: "ID document image unreadable. Asked applicant to resubmit a clearer scan.",
     idDocument: { fileName: "nightowlcap-id.jpg", uploadedAt: "2026-08-15" },
   },
   {

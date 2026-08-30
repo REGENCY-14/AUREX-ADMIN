@@ -18,6 +18,7 @@ import {
   CoinsIcon,
   BriefcaseIcon,
   MegaphoneIcon,
+  BookIcon,
   AlertIcon,
   LogOutIcon,
   ChevronDownIcon,
@@ -42,7 +43,7 @@ const NAV_LINKS: NavLink[] = [
   { label: "Record Investment", href: "/investments", icon: CoinsIcon },
   { label: "Business Listings", href: "/listings", icon: BriefcaseIcon },
   { label: "Home Content", href: "/content", icon: MegaphoneIcon },
-  { label: "Reports", href: "/reports", icon: AlertIcon, badgeKey: "openReports" },
+  { label: "Reports", href: "/reports", icon: BookIcon, badgeKey: "openReports" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -62,8 +63,8 @@ function UnsupportedViewport() {
       <AlertIcon className="size-7 text-gold-bright" />
       <h1 className="font-jakarta text-lg font-semibold text-cream">Tablet or Larger Required</h1>
       <p className="max-w-xs font-sans text-sm text-cream-dim">
-        AUREX Admin manages live investment slots, member accounts, and financial records — actions that need more
-        room than a phone screen can safely give. Please switch to a tablet or laptop to continue.
+        AUREX Admin manages live investment slots, member accounts, and financial records. These actions need more
+        room than a phone screen can safely give, so please switch to a tablet or laptop to continue.
       </p>
     </div>
   );
@@ -75,10 +76,18 @@ function UnsupportedViewport() {
  * below `lg`" pattern. That pattern (still how the main site's own
  * Navbar.tsx behaves) existed here to cope with a full-width sidebar
  * having nowhere to go on narrow screens; now that the sidebar collapses
- * to a narrow icon rail on its own (the chevron toggle below), that's
- * the one affordance this shell needs for tight widths, so the hamburger
- * variant is redundant per feedback and dropped rather than kept
- * alongside it.
+ * to a narrow icon rail on its own (the floating edge toggle below),
+ * that's the one affordance this shell needs for tight widths, so the
+ * hamburger variant is redundant per feedback and dropped rather than
+ * kept alongside it.
+ *
+ * That toggle is a small circular button pinned to the sidebar's own
+ * right border (`<aside>` is already `sticky`-positioned, so it's the
+ * anchor for free) rather than living inline in the header row — per
+ * feedback with a reference screenshot. Sitting on the border means one
+ * fixed spot regardless of collapsed state, and it frees the header back
+ * up to just the logo instead of needing to reflow into a column to make
+ * room for a second element once collapsed.
  *
  * The collapse toggle's state lives in lib/sidebarState.ts, not a plain
  * useState here — per feedback, it needs to stay collapsed across a
@@ -135,23 +144,26 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             collapsed ? "w-[76px]" : "w-64"
           }`}
         >
-          <div
-            className={`flex border-b border-grid-line ${
-              collapsed ? "flex-col items-center gap-3 px-3 py-4" : "items-center justify-between gap-2 px-5 py-5"
-            }`}
+          {/* Floating edge toggle — half on/half off the sidebar's own
+              right border, same spot regardless of collapsed state,
+              rather than a button competing for space inside the header
+              row (which also used to force that row into a column layout
+              once collapsed, just to make room for it). `<aside>` is
+              already `sticky`-positioned, so it's this button's anchor
+              for free, no extra `relative` needed. */}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="absolute -right-3 top-9 z-20 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-grid-line bg-panel text-cream-dim transition-colors hover:border-gold/40 hover:text-gold-bright"
           >
+            <ChevronDownIcon className={`size-3 transition-transform ${collapsed ? "-rotate-90" : "rotate-90"}`} />
+          </button>
+
+          <div className="flex items-center justify-end border-b border-grid-line px-5 py-5">
             <Link href="/" className="flex items-center gap-2 overflow-hidden">
               <BrandLogo className="h-8 w-auto shrink-0" />
-              {!collapsed && <span className="whitespace-nowrap font-jakarta text-sm font-semibold text-cream">Admin</span>}
             </Link>
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="flex size-7 shrink-0 items-center justify-center text-cream-dim transition-colors hover:text-gold-bright"
-            >
-              <ChevronDownIcon className={`size-4 transition-transform ${collapsed ? "-rotate-90" : "rotate-90"}`} />
-            </button>
           </div>
 
           <nav aria-label="Admin sections" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">

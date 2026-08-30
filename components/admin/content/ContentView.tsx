@@ -8,8 +8,9 @@ import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge from "@/components/admin/StatusBadge";
 import Modal from "@/components/admin/Modal";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import EmptyState from "@/components/admin/EmptyState";
 import ContentForm, { type ContentFormValues } from "@/components/admin/content/ContentForm";
-import { ArrowUpIcon, ArrowDownIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { ArrowUpIcon, ArrowDownIcon, PlusIcon, TrashIcon, MegaphoneIcon } from "@/components/icons";
 import type { ContentBlock } from "@/lib/homeContent";
 
 /**
@@ -96,9 +97,20 @@ export default function ContentView({ blocks: initialBlocks }: { blocks: Content
       )}
 
       {sorted.length === 0 ? (
-        <motion.p variants={staggerItem} className="border border-grid-line bg-panel/20 p-8 text-center font-sans text-sm text-cream-dim">
-          No content blocks yet.
-        </motion.p>
+        <EmptyState
+          icon={MegaphoneIcon}
+          title="No content blocks yet"
+          description="Announcement blocks you add here will show up on the public AUREX home page, in this order."
+          action={
+            <button
+              type="button"
+              onClick={() => setEditingBlock("new")}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2.5 font-jakarta text-sm font-medium text-amainblack"
+            >
+              <PlusIcon className="size-3.5" /> Add Block
+            </button>
+          }
+        />
       ) : (
         <motion.div variants={staggerItem} className="flex flex-col gap-3">
           {sorted.map((block, index) => (

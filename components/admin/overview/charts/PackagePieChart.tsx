@@ -92,6 +92,14 @@ export default function PackagePieChart({ allocation }: { allocation: PackageAll
       return acc;
     }, []);
 
+  // With nothing invested yet, `drawn` above comes back empty — an
+  // invisible donut (no <path>s at all) and an equally empty legend row,
+  // which reads as broken, not "zero". Same reasoning as TrendChart's own
+  // `data.length === 0` fallback right beside this card.
+  if (total === 0) {
+    return <p className="font-sans text-sm text-cream-dim">No investment data yet.</p>;
+  }
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5">
       <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>

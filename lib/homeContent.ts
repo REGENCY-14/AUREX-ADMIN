@@ -37,7 +37,7 @@ export const CONTENT_BLOCKS: ContentBlock[] = [
   },
   {
     id: "content-03",
-    title: "Scheduled maintenance — 30 Aug, 11pm–1am GMT",
+    title: "Scheduled maintenance: 30 Aug, 11pm–1am GMT",
     body: "The AUREX platform will be briefly unavailable for scheduled maintenance. Investments and applications are unaffected.",
     state: "draft",
     order: 3,

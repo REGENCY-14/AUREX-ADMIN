@@ -11,8 +11,9 @@ import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import PriorityTag from "@/components/admin/reports/PriorityTag";
 import Select from "@/components/admin/Select";
+import EmptyState from "@/components/admin/EmptyState";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
-import { ArrowUpIcon, ArrowDownIcon } from "@/components/icons";
+import { ArrowUpIcon, ArrowDownIcon, BookIcon, SearchIcon } from "@/components/icons";
 import {
   CATEGORY_LABEL,
   PRIORITY_LABEL,
@@ -210,9 +211,33 @@ export default function ReportsView({
       </motion.div>
 
       {filtered.length === 0 ? (
-        <motion.p variants={staggerItem} className="border border-grid-line bg-panel/20 p-8 text-center font-sans text-sm text-cream-dim">
-          No reports match these filters.
-        </motion.p>
+        reports.length === 0 ? (
+          <EmptyState
+            icon={BookIcon}
+            title="No reports yet"
+            description="Reports Investors and Business Owners file from their dashboard will show up here."
+          />
+        ) : (
+          <EmptyState
+            icon={SearchIcon}
+            title="No reports match these filters"
+            description="Try a different role, category, priority, or status."
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  setRoleFilter("all");
+                  setCategoryFilter("all");
+                  setPriorityFilter("all");
+                  setStatusFilter("all");
+                }}
+                className="border border-grid-line px-3 py-2 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+              >
+                Clear filters
+              </button>
+            }
+          />
+        )
       ) : (
         <>
           <motion.div variants={staggerItem} className="hidden overflow-x-auto border border-grid-line lg:block">

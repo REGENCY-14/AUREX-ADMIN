@@ -12,8 +12,9 @@ import { DANGER_ROW_CLASSNAME } from "@/components/admin/tableStyles";
 import ActionsMenu, { type ActionMenuItem } from "@/components/admin/ActionsMenu";
 import Modal from "@/components/admin/Modal";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import EmptyState from "@/components/admin/EmptyState";
 import SlotForm, { type SlotFormValues } from "@/components/admin/slots/SlotForm";
-import { PencilIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { PencilIcon, PlusIcon, TrashIcon, LayersIcon, SearchIcon } from "@/components/icons";
 import {
   SLOT_PACKAGE_LABEL,
   SLOT_STATUS_LABEL,
@@ -35,20 +36,38 @@ const STATUS_TONE: Record<SlotStatus, BadgeTone> = {
  *  package, called below for "core" and "ventures" in turn. */
 function SlotTable({
   slots,
+  packageLabel,
+  hasAnyInPackage,
+  hasActiveFilter,
   listingsById,
   showBusinessColumn,
   onPublish,
   onCloseEarly,
   onEdit,
   onDelete,
+  onCreateNew,
+  onClearFilter,
 }: {
   slots: InvestmentSlot[];
+  /** The package's own display name ("AUREX Core"/"AUREX Ventures"), for
+   *  this table's own empty-state copy — the two package tables can't
+   *  share one generic "no slots yet" message since which package is
+   *  empty matters to the admin reading it. */
+  packageLabel: string;
+  /** Whether this package has any slots at all before the status filter
+   *  is applied — tells a genuinely-empty package (nothing created yet)
+   *  apart from one where the current status filter just hides
+   *  everything, so this table shows the right one of the two. */
+  hasAnyInPackage: boolean;
+  hasActiveFilter: boolean;
   listingsById: Record<string, BusinessListing>;
   showBusinessColumn: boolean;
   onPublish: (slot: InvestmentSlot) => void;
   onCloseEarly: (slot: InvestmentSlot) => void;
   onEdit: (slot: InvestmentSlot) => void;
   onDelete: (slot: InvestmentSlot) => void;
+  onCreateNew: () => void;
+  onClearFilter: () => void;
 }) {
   function actionItems(slot: InvestmentSlot): ActionMenuItem[] {
     const items: ActionMenuItem[] = [];
@@ -68,6 +87,40 @@ function SlotTable({
     return items;
   }
 
+  if (slots.length === 0) {
+    return hasAnyInPackage && hasActiveFilter ? (
+      <EmptyState
+        icon={SearchIcon}
+        title="No slots match this filter"
+        description="Try a different status."
+        action={
+          <button
+            type="button"
+            onClick={onClearFilter}
+            className="border border-grid-line px-3 py-2 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+          >
+            Clear filter
+          </button>
+        }
+      />
+    ) : (
+      <EmptyState
+        icon={LayersIcon}
+        title={`No ${packageLabel} slots yet`}
+        description="Create one to open it for investment."
+        action={
+          <button
+            type="button"
+            onClick={onCreateNew}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2.5 font-jakarta text-sm font-medium text-amainblack"
+          >
+            <PlusIcon className="size-3.5" /> Create Slot
+          </button>
+        }
+      />
+    );
+  }
+
   return (
     <>
       <motion.div variants={staggerItem} className="hidden overflow-x-auto border border-grid-line lg:block">
@@ -84,13 +137,6 @@ function SlotTable({
             </tr>
           </thead>
           <tbody>
-            {slots.length === 0 && (
-              <tr>
-                <td colSpan={showBusinessColumn ? 5 : 4} className="px-4 py-6 text-center font-sans text-sm text-cream-dim">
-                  No slots match this filter.
-                </td>
-              </tr>
-            )}
             {slots.map((slot) => {
               const listing = slot.businessListingId ? listingsById[slot.businessListingId] : undefined;
               return (
@@ -124,11 +170,6 @@ function SlotTable({
       </motion.div>
 
       <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
-        {slots.length === 0 && (
-          <p className="border border-grid-line bg-panel/20 px-4 py-6 text-center font-sans text-sm text-cream-dim">
-            No slots match this filter.
-          </p>
-        )}
         {slots.map((slot) => {
           const listing = slot.businessListingId ? listingsById[slot.businessListingId] : undefined;
           return (
@@ -241,6 +282,9 @@ export default function SlotsView({
 
   const coreSlots = useMemo(() => filtered.filter((s) => s.package === "core"), [filtered]);
   const venturesSlots = useMemo(() => filtered.filter((s) => s.package === "ventures"), [filtered]);
+  const hasActiveFilter = statusFilter !== "all";
+  const hasAnyCoreSlots = useMemo(() => slots.some((s) => s.package === "core"), [slots]);
+  const hasAnyVenturesSlots = useMemo(() => slots.some((s) => s.package === "ventures"), [slots]);
 
   function closeModal() {
     setModalSlot(null);
@@ -273,17 +317,17 @@ export default function SlotsView({
       const id = modalSlot.id;
       setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...draft, status: "open" } : s)));
     }
-    setBanner("Slot published — now open for investment.");
+    setBanner("Slot published, now open for investment.");
     closeModal();
   }
 
   function handlePublishFromList(slot: InvestmentSlot) {
     if (!canPublishSlot(slot)) {
-      setBanner(`Cannot publish “${SLOT_PACKAGE_LABEL[slot.package]}” — it needs a linked, approved business listing first.`);
+      setBanner(`Cannot publish “${SLOT_PACKAGE_LABEL[slot.package]}”: it needs a linked, approved business listing first.`);
       return;
     }
     setSlots((prev) => prev.map((s) => (s.id === slot.id ? { ...s, status: "open" } : s)));
-    setBanner("Slot published — now open for investment.");
+    setBanner("Slot published, now open for investment.");
   }
 
   function handleCloseEarly(slot: InvestmentSlot) {
@@ -345,12 +389,17 @@ export default function SlotsView({
         <h2 className="font-jakarta text-base font-semibold text-cream">AUREX Core</h2>
         <SlotTable
           slots={coreSlots}
+          packageLabel="AUREX Core"
+          hasAnyInPackage={hasAnyCoreSlots}
+          hasActiveFilter={hasActiveFilter}
           listingsById={listingsById}
           showBusinessColumn={false}
           onPublish={(slot) => setConfirmSlotAction({ type: "publish", slot })}
           onCloseEarly={(slot) => setConfirmSlotAction({ type: "closeEarly", slot })}
           onEdit={(slot) => setModalSlot(slot)}
           onDelete={(slot) => setConfirmSlotAction({ type: "delete", slot })}
+          onCreateNew={() => setModalSlot("new")}
+          onClearFilter={() => setStatusFilter("all")}
         />
       </motion.div>
 
@@ -358,12 +407,17 @@ export default function SlotsView({
         <h2 className="font-jakarta text-base font-semibold text-cream">AUREX Ventures</h2>
         <SlotTable
           slots={venturesSlots}
+          packageLabel="AUREX Ventures"
+          hasAnyInPackage={hasAnyVenturesSlots}
+          hasActiveFilter={hasActiveFilter}
           listingsById={listingsById}
           showBusinessColumn={true}
           onPublish={(slot) => setConfirmSlotAction({ type: "publish", slot })}
           onCloseEarly={(slot) => setConfirmSlotAction({ type: "closeEarly", slot })}
           onEdit={(slot) => setModalSlot(slot)}
           onDelete={(slot) => setConfirmSlotAction({ type: "delete", slot })}
+          onCreateNew={() => setModalSlot("new")}
+          onClearFilter={() => setStatusFilter("all")}
         />
       </motion.div>
 

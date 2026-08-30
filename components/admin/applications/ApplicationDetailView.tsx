@@ -60,7 +60,7 @@ export default function ApplicationDetailView({ application }: { application: Ap
     setStatus("approved");
     setShowRejectForm(false);
     setActionMessage(
-      `${application.nickname}'s application was approved. This is a stubbed action — nothing is persisted (no backend yet, and this admin app doesn't use localStorage), so a refresh reverts to pending.`
+      `${application.nickname}'s application was approved. This is a stubbed action: nothing is persisted (no backend yet, and this admin app doesn't use localStorage), so a refresh reverts to pending.`
     );
   }
 
@@ -68,7 +68,7 @@ export default function ApplicationDetailView({ application }: { application: Ap
     setStatus("rejected");
     setShowRejectForm(false);
     setActionMessage(
-      `${application.nickname}'s application was rejected${rejectionReason ? ` ("${rejectionReason}")` : ""}. This is a stubbed action — nothing is persisted.`
+      `${application.nickname}'s application was rejected${rejectionReason ? ` ("${rejectionReason}")` : ""}. This is a stubbed action: nothing is persisted.`
     );
   }
 
@@ -192,7 +192,7 @@ export default function ApplicationDetailView({ application }: { application: Ap
 
         {isDecided && (
           <p className="font-sans text-sm text-cream-dim">
-            This application has already been {status}. Stubbed for now — a real admin tool would let you reverse a
+            This application has already been {status}. Stubbed for now: a real admin tool would let you reverse a
             decision from here too.
           </p>
         )}
