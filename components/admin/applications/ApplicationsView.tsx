@@ -10,8 +10,9 @@ import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import Select from "@/components/admin/Select";
+import EmptyState from "@/components/admin/EmptyState";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
-import { ArrowUpIcon, ArrowDownIcon, SpinnerIcon } from "@/components/icons";
+import { ArrowUpIcon, ArrowDownIcon, InboxIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
 import { useSession } from "@/lib/auth";
 import { getApplications, type Application, type ApplicationStatus, type ApplicationTrack } from "@/lib/applications";
 
@@ -133,9 +134,31 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
           <SpinnerIcon className="size-4 animate-spin" /> Loading applications…
         </motion.div>
       ) : filtered.length === 0 ? (
-        <motion.p variants={staggerItem} className="border border-grid-line bg-panel/20 p-8 text-center font-sans text-sm text-cream-dim">
-          No applications match these filters.
-        </motion.p>
+        applications.length === 0 ? (
+          <EmptyState
+            icon={InboxIcon}
+            title="No applications yet"
+            description="Investor and business owner applications will show up here as soon as people start applying."
+          />
+        ) : (
+          <EmptyState
+            icon={SearchIcon}
+            title="No applications match these filters"
+            description="Try a different track or status."
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  setTrackFilter("all");
+                  setStatusFilter("all");
+                }}
+                className="border border-grid-line px-3 py-2 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+              >
+                Clear filters
+              </button>
+            }
+          />
+        )
       ) : (
         <>
           {/* lg+: real table. Below lg: stacked cards — a table this

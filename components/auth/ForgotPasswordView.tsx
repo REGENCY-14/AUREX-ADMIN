@@ -55,7 +55,7 @@ export default function ForgotPasswordView() {
             <Link href="/reset-password" className="text-gold-bright transition-colors hover:text-gold-light">
               resetting your password
             </Link>{" "}
-            — there&rsquo;s no real inbox behind this yet.
+            since there&rsquo;s no real inbox behind this yet.
           </p>
         </div>
       </AuthCard>

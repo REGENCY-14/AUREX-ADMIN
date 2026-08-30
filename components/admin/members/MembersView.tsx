@@ -9,8 +9,9 @@ import { formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
+import EmptyState from "@/components/admin/EmptyState";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
-import { SearchIcon } from "@/components/icons";
+import { SearchIcon, UsersIcon } from "@/components/icons";
 import type { Member, MemberStatus, MemberTrack } from "@/lib/members";
 
 const STATUS_TONE: Record<MemberStatus, BadgeTone> = {
@@ -56,9 +57,28 @@ export default function MembersView({ members }: { members: Member[] }) {
       </motion.div>
 
       {filtered.length === 0 ? (
-        <motion.p variants={staggerItem} className="border border-grid-line bg-panel/20 p-8 text-center font-sans text-sm text-cream-dim">
-          No members match “{query}”.
-        </motion.p>
+        members.length === 0 ? (
+          <EmptyState
+            icon={UsersIcon}
+            title="No members yet"
+            description="Registered investors and business owners will appear here once applications are approved."
+          />
+        ) : (
+          <EmptyState
+            icon={SearchIcon}
+            title={`No members match “${query}”`}
+            description="Try a different nickname or real name."
+            action={
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="border border-grid-line px-3 py-2 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+              >
+                Clear search
+              </button>
+            }
+          />
+        )
       ) : (
         <>
           <motion.div variants={staggerItem} className="hidden overflow-x-auto border border-grid-line lg:block">

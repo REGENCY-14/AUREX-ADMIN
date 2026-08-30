@@ -112,7 +112,7 @@ export const REPORTS: Report[] = [
     status: "in_progress",
     submittedAt: "2026-08-20",
     adminResponse:
-      "Passed this to the dev team — they've reproduced it and expect a fix in the next release. Will update you here once it ships.",
+      "Passed this to the dev team; they've reproduced it and expect a fix in the next release. Will update you here once it ships.",
     respondedAt: "2026-08-23",
   },
   {
@@ -141,7 +141,7 @@ export const REPORTS: Report[] = [
     status: "resolved",
     submittedAt: "2026-08-05",
     adminResponse:
-      "Confirmed with finance — your GHS 6,000 principal was returned via mobile money on 10 Aug. Apologies for the delay in confirming here.",
+      "Confirmed with finance: your GHS 6,000 principal was returned via mobile money on 10 Aug. Apologies for the delay in confirming here.",
     respondedAt: "2026-08-11",
   },
   {
@@ -161,11 +161,11 @@ export const REPORTS: Report[] = [
     category: "technical",
     subject: "Can't download our funding statement as PDF",
     description:
-      "The \"Download Statement\" button on our business dashboard spins forever and never produces a file — we need this for our records.",
+      "The \"Download Statement\" button on our business dashboard spins forever and never produces a file. We need this for our records.",
     priority: "low",
     status: "in_progress",
     submittedAt: "2026-08-21",
-    adminResponse: "Confirmed the export tool is timing out for larger statements — dev team is on it.",
+    adminResponse: "Confirmed the export tool is timing out for larger statements; dev team is on it.",
     respondedAt: "2026-08-22",
   },
   {

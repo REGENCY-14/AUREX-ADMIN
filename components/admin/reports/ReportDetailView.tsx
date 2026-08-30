@@ -84,9 +84,9 @@ export default function ReportDetailView({
 
   function handleSave() {
     setActionMessage(
-      `Status set to “${STATUS_LABEL[status]}”${response.trim() ? " and your response was saved" : ""} — visible to ${
+      `Status set to “${STATUS_LABEL[status]}”${response.trim() ? " and your response was saved" : ""}, visible to ${
         member?.nickname ?? "the reporter"
-      } in their My Reports view. This is a stubbed action — nothing is persisted (no backend yet), so a refresh reverts to the original values.`
+      } in their My Reports view. This is a stubbed action: nothing is persisted (no backend yet), so a refresh reverts to the original values.`
     );
   }
 
@@ -174,7 +174,7 @@ export default function ReportDetailView({
               href={`/listings/${relatedListing.id}`}
               className="flex w-fit items-center gap-1.5 font-jakarta text-sm font-medium text-gold-bright underline-offset-4 transition-colors hover:text-gold-light hover:underline"
             >
-              {relatedListing.businessName} — Business Listing
+              {relatedListing.businessName} (Business Listing)
               <ArrowRightIcon className="size-3" />
             </Link>
           </div>

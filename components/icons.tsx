@@ -226,6 +226,20 @@ export function PencilIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function BookIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path
+        d="M10 6C8.7 4.7 6.5 4 3 4.5V15C6.5 14.5 8.7 15.2 10 16.5C11.3 15.2 13.5 14.5 17 15V4.5C13.5 4 11.3 4.7 10 6Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path d="M10 6V16.5" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
 export function AlertIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>

@@ -83,7 +83,7 @@ export const INVESTMENT_RECORDS: InvestmentRecord[] = [
     amountInvestedGhs: 6000,
     dateInvested: "2025-11-25",
     proofOfPaymentFileName: "quietcapital-deposit-1.pdf",
-    notes: "Matured — slot closed 20 Dec 2025.",
+    notes: "Matured. Slot closed 20 Dec 2025.",
     earningsToDateGhs: 540,
     lastEarningsUpdate: "2026-06-30",
   },

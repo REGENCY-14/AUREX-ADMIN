@@ -90,7 +90,7 @@ export default function DocumentPreview({
                 <h2 className="font-jakarta text-lg font-semibold text-cream">{label}</h2>
                 <p className="font-sans text-xs text-cream-dim">
                   {fileName}
-                  {uploadedAt && ` — uploaded ${formatDisplayDate(uploadedAt)}`}
+                  {uploadedAt && ` (uploaded ${formatDisplayDate(uploadedAt)})`}
                 </p>
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}

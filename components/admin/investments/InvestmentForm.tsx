@@ -81,7 +81,7 @@ export default function InvestmentForm({
             value={values.memberId}
             onChange={(v) => set("memberId", v)}
             options={[
-              { value: "", label: "— Select an investor —" },
+              { value: "", label: "Select an investor" },
               ...investors.map((m) => ({ value: m.id, label: m.nickname })),
             ]}
           />
@@ -93,7 +93,7 @@ export default function InvestmentForm({
             value={values.slotId}
             onChange={(v) => set("slotId", v)}
             options={[
-              { value: "", label: "— Select an open slot —" },
+              { value: "", label: "Select an open slot" },
               ...openSlots.map((s) => ({ value: s.id, label: `${SLOT_PACKAGE_LABEL[s.package]} (${s.ratePercentLabel})` })),
             ]}
           />

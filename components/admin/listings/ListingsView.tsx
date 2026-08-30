@@ -8,8 +8,9 @@ import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import Select from "@/components/admin/Select";
+import EmptyState from "@/components/admin/EmptyState";
 import { DANGER_ROW_CLASSNAME, iconButtonClassName } from "@/components/admin/tableStyles";
-import { PencilIcon } from "@/components/icons";
+import { PencilIcon, BriefcaseIcon, SearchIcon } from "@/components/icons";
 import Modal from "@/components/admin/Modal";
 import ListingForm, { type ListingFormValues } from "@/components/admin/listings/ListingForm";
 import { LISTING_STATUS_LABEL, getFundingPercent, type BusinessListing, type ListingStatus } from "@/lib/businessListings";
@@ -90,6 +91,31 @@ export default function ListingsView({
         </span>
       </motion.div>
 
+      {filtered.length === 0 ? (
+        listings.length === 0 ? (
+          <EmptyState
+            icon={BriefcaseIcon}
+            title="No business listings yet"
+            description="Listings submitted by business owners will show up here once they're added."
+          />
+        ) : (
+          <EmptyState
+            icon={SearchIcon}
+            title="No listings match this filter"
+            description="Try a different status."
+            action={
+              <button
+                type="button"
+                onClick={() => setStatusFilter("all")}
+                className="border border-grid-line px-3 py-2 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+              >
+                Clear filter
+              </button>
+            }
+          />
+        )
+      ) : (
+        <>
       <motion.div variants={staggerItem} className="hidden overflow-x-auto border border-grid-line lg:block">
         <table className="w-full border-collapse text-left">
           <thead>
@@ -164,6 +190,8 @@ export default function ListingsView({
           </motion.div>
         ))}
       </motion.div>
+        </>
+      )}
 
       <Modal
         isOpen={editingListing !== null}

@@ -6,7 +6,9 @@ import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/moti
 import { formatGhs, formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import Modal from "@/components/admin/Modal";
+import EmptyState from "@/components/admin/EmptyState";
 import InvestmentForm, { type InvestmentFormValues } from "@/components/admin/investments/InvestmentForm";
+import { CoinsIcon } from "@/components/icons";
 import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
 import type { Member } from "@/lib/members";
 import type { InvestmentRecord } from "@/lib/investments";
@@ -94,76 +96,86 @@ export default function InvestmentsView({
       <motion.div variants={staggerItem} className="flex flex-col gap-3">
         <h2 className="font-jakarta text-lg font-semibold text-cream">All Investment Records</h2>
 
-        <div className="hidden overflow-x-auto border border-grid-line lg:block">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b border-grid-line bg-panel/40">
-                <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Member</th>
-                <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Slot</th>
-                <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Amount</th>
-                <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Date</th>
-                <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Earnings to Date</th>
-                <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Update</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((record) => (
-                <motion.tr key={record.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
-                  <td className="px-4 py-3 font-jakarta text-sm font-medium text-cream">{membersById[record.memberId]?.nickname ?? "—"}</td>
-                  <td className="px-4 py-3 font-sans text-sm text-cream-dim">
-                    {slotsById[record.slotId] ? SLOT_PACKAGE_LABEL[slotsById[record.slotId].package] : "—"}
-                  </td>
-                  <td className="px-4 py-3 font-jakarta text-sm font-semibold text-gold-bright">{formatGhs(record.amountInvestedGhs)}</td>
-                  <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatDisplayDate(record.dateInvested)}</td>
-                  <td className="px-4 py-3 font-sans text-sm text-cream-dim">
-                    {formatGhs(record.earningsToDateGhs)}{" "}
-                    <span className="text-xs">(as of {formatDisplayDate(record.lastEarningsUpdate)})</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => openEarningsModal(record)}
-                      className="border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
-                    >
-                      Update Earnings
-                    </button>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {records.length === 0 ? (
+          <EmptyState
+            icon={CoinsIcon}
+            title="No investments recorded yet"
+            description="Use the form above to record a member's first investment. It'll show up here right away."
+          />
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto border border-grid-line lg:block">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-grid-line bg-panel/40">
+                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Member</th>
+                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Slot</th>
+                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Amount</th>
+                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Date</th>
+                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Earnings to Date</th>
+                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((record) => (
+                    <motion.tr key={record.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
+                      <td className="px-4 py-3 font-jakarta text-sm font-medium text-cream">{membersById[record.memberId]?.nickname ?? "—"}</td>
+                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">
+                        {slotsById[record.slotId] ? SLOT_PACKAGE_LABEL[slotsById[record.slotId].package] : "—"}
+                      </td>
+                      <td className="px-4 py-3 font-jakarta text-sm font-semibold text-gold-bright">{formatGhs(record.amountInvestedGhs)}</td>
+                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatDisplayDate(record.dateInvested)}</td>
+                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">
+                        {formatGhs(record.earningsToDateGhs)}{" "}
+                        <span className="text-xs">(as of {formatDisplayDate(record.lastEarningsUpdate)})</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => openEarningsModal(record)}
+                          className="border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+                        >
+                          Update Earnings
+                        </button>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        <div className="flex flex-col gap-3 lg:hidden">
-          {records.map((record) => (
-            <motion.div key={record.id} {...hoverLift} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <span className="font-jakarta text-sm font-semibold text-cream">{membersById[record.memberId]?.nickname ?? "—"}</span>
-                <span className="font-jakarta text-sm font-semibold text-gold-bright">{formatGhs(record.amountInvestedGhs)}</span>
-              </div>
-              <span className="font-sans text-sm text-cream-dim">
-                {slotsById[record.slotId] ? SLOT_PACKAGE_LABEL[slotsById[record.slotId].package] : "—"} · {formatDisplayDate(record.dateInvested)}
-              </span>
-              <span className="font-sans text-xs text-cream-dim">
-                Earnings to date: {formatGhs(record.earningsToDateGhs)} (as of {formatDisplayDate(record.lastEarningsUpdate)})
-              </span>
-              <button
-                type="button"
-                onClick={() => openEarningsModal(record)}
-                className="mt-1 w-fit border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim"
-              >
-                Update Earnings
-              </button>
-            </motion.div>
-          ))}
-        </div>
+            <div className="flex flex-col gap-3 lg:hidden">
+              {records.map((record) => (
+                <motion.div key={record.id} {...hoverLift} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-jakarta text-sm font-semibold text-cream">{membersById[record.memberId]?.nickname ?? "—"}</span>
+                    <span className="font-jakarta text-sm font-semibold text-gold-bright">{formatGhs(record.amountInvestedGhs)}</span>
+                  </div>
+                  <span className="font-sans text-sm text-cream-dim">
+                    {slotsById[record.slotId] ? SLOT_PACKAGE_LABEL[slotsById[record.slotId].package] : "—"} · {formatDisplayDate(record.dateInvested)}
+                  </span>
+                  <span className="font-sans text-xs text-cream-dim">
+                    Earnings to date: {formatGhs(record.earningsToDateGhs)} (as of {formatDisplayDate(record.lastEarningsUpdate)})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openEarningsModal(record)}
+                    className="mt-1 w-fit border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim"
+                  >
+                    Update Earnings
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          </>
+        )}
       </motion.div>
 
       <Modal
         isOpen={editingEarnings !== null}
         onClose={() => setEditingEarnings(null)}
         title="Update Earnings to Date"
-        description="Manually recorded, same as the original figure — this doesn't calculate anything automatically."
+        description="Manually recorded, same as the original figure. This doesn't calculate anything automatically."
       >
         <div className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">

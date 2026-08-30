@@ -63,7 +63,7 @@ export default function MemberDetailView({
     const next: MemberStatus = status === "active" ? "suspended" : "active";
     setStatus(next);
     setActionMessage(
-      `${member.nickname} was ${next === "suspended" ? "suspended" : "reactivated"}. Stubbed — nothing is persisted (no backend yet).`
+      `${member.nickname} was ${next === "suspended" ? "suspended" : "reactivated"}. Stubbed: nothing is persisted (no backend yet).`
     );
   }
 

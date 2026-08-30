@@ -85,7 +85,7 @@ export default function SlotForm({
             value={values.businessListingId}
             onChange={(v) => set("businessListingId", v)}
             options={[
-              { value: "", label: "— Select a business —" },
+              { value: "", label: "Select a business" },
               ...approvedListings.map((listing) => ({ value: listing.id, label: listing.businessName })),
             ]}
           />
