@@ -9,7 +9,7 @@ import AuthField from "@/components/auth/AuthField";
 import { hoverScale } from "@/lib/motion";
 import { useSession } from "@/lib/auth";
 import { ApiError } from "@/lib/api/client";
-import { UserIcon, MailIcon, LockIcon, KeyIcon, EyeIcon, EyeOffIcon, SpinnerIcon, CheckIcon } from "@/components/icons";
+import { UserIcon, MailIcon, LockIcon, KeyIcon, EyeIcon, EyeOffIcon, SpinnerIcon } from "@/components/icons";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -80,9 +80,6 @@ export default function RegisterView() {
         description={`An existing admin needs to approve ${email} before you can sign in with it. We'll email you once it's active.`}
       >
         <div className="flex flex-col items-center gap-4 py-2">
-          <span className="flex size-11 items-center justify-center border border-gold/30 bg-gold/10 text-gold-bright">
-            <CheckIcon className="size-5" />
-          </span>
           <Link href="/login" className="w-full">
             <motion.span
               {...hoverScale}
