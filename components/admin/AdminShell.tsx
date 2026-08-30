@@ -160,7 +160,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <ChevronDownIcon className={`size-3 transition-transform ${collapsed ? "-rotate-90" : "rotate-90"}`} />
           </button>
 
-          <div className="flex items-center justify-end border-b border-grid-line px-5 py-5">
+          <div className="flex items-center justify-start border-b border-grid-line px-5 py-5">
             <Link href="/" className="flex items-center gap-2 overflow-hidden">
               <BrandLogo className="h-8 w-auto shrink-0" />
             </Link>
