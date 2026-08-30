@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import OverviewView from "@/components/admin/overview/OverviewView";
-import { getApplications, getPendingApplicationCount } from "@/lib/applications";
 import { getMembers } from "@/lib/members";
 import { getMonthlyInvestedTrend, getInvestedByPackage } from "@/lib/investments";
 import { getInvestmentSlots } from "@/lib/investmentSlots";
@@ -21,12 +20,10 @@ export const metadata: Metadata = {
  * own always-visible endpoint label already carries that figure, so
  * OverviewView no longer takes it as a separate prop.
  */
-export default async function OverviewPage() {
+export default function OverviewPage() {
   const members = getMembers();
-  const applications = await getApplications();
 
   const stats = {
-    pendingApplications: await getPendingApplicationCount(),
     investorCount: members.filter((m) => m.track === "investor").length,
     businessOwnerCount: members.filter((m) => m.track === "business").length,
     openSlotCount: getInvestmentSlots().filter((s) => s.status === "open").length,
@@ -34,18 +31,5 @@ export default async function OverviewPage() {
     openReportCount: getOpenReportCount(),
   };
 
-  const applicationStatusCounts = {
-    pending: applications.filter((a) => a.status === "pending").length,
-    approved: applications.filter((a) => a.status === "approved").length,
-    rejected: applications.filter((a) => a.status === "rejected").length,
-  };
-
-  return (
-    <OverviewView
-      stats={stats}
-      investedTrend={getMonthlyInvestedTrend()}
-      applicationStatusCounts={applicationStatusCounts}
-      packageAllocation={getInvestedByPackage()}
-    />
-  );
+  return <OverviewView stats={stats} investedTrend={getMonthlyInvestedTrend()} packageAllocation={getInvestedByPackage()} />;
 }

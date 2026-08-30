@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { scrollReveal, hoverScale } from "@/lib/motion";
@@ -9,9 +9,17 @@ import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import DocumentPreview from "@/components/admin/DocumentPreview";
-import { ArrowRightIcon, CheckIcon, XIcon } from "@/components/icons";
+import { ArrowRightIcon, CheckIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api/client";
-import { approveApplication, formatFundingRange, rejectApplication, type Application, type ApplicationStatus } from "@/lib/applications";
+import { useSession } from "@/lib/auth";
+import {
+  approveApplication,
+  formatFundingRange,
+  getApplicationById,
+  rejectApplication,
+  type Application,
+  type ApplicationStatus,
+} from "@/lib/applications";
 
 const STATUS_TONE: Record<ApplicationStatus, BadgeTone> = {
   pending: "neutral",
@@ -35,12 +43,9 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * The Application detail/review screen. Approve/Reject only mutate this
- * component's own React state — per the brief there's no backend and no
- * localStorage/sessionStorage to persist to, so an action here reflects
- * in the UI for this session only (a refresh reverts to the original mock
- * status). That's flagged inline via `actionMessage` rather than
- * pretending it's a real, saved decision.
+ * The Application detail/review screen. Fetches its own data (see
+ * ApplicationsView's own comment for why this can't be a server-fetched
+ * prop) — `id` is all the parent route needs to pass down.
  *
  * `scrollReveal` on each section rather than one big fade-in — this is
  * the one admin screen genuinely long enough (personal info + business
@@ -48,21 +53,42 @@ function Field({ label, value }: { label: string; value: string }) {
  * you scroll, per the brief's own guidance for "detail views with lots
  * of content".
  */
-export default function ApplicationDetailView({ application }: { application: Application }) {
-  const [status, setStatus] = useState<ApplicationStatus>(application.status);
-  const [rejectionReason, setRejectionReason] = useState(application.rejectionReason ?? "");
+export default function ApplicationDetailView({ id }: { id: string }) {
+  const { session } = useSession();
+  const [application, setApplication] = useState<Application | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState<ApplicationStatus>("pending");
+  const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionFailed, setActionFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
 
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    getApplicationById(session.accessToken, id).then((result) => {
+      if (cancelled) return;
+      setApplication(result ?? null);
+      setStatus(result?.status ?? "pending");
+      setRejectionReason(result?.rejectionReason ?? "");
+      setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, id]);
+
   const isDecided = status !== "pending";
 
   async function handleApprove() {
+    if (!application || !session) return;
     setIsSubmitting(true);
     try {
-      await approveApplication(application.id);
+      await approveApplication(session.accessToken, application.id);
       setStatus("approved");
       setShowRejectForm(false);
       setActionFailed(false);
@@ -77,9 +103,10 @@ export default function ApplicationDetailView({ application }: { application: Ap
   }
 
   async function handleReject() {
+    if (!application || !session) return;
     setIsSubmitting(true);
     try {
-      await rejectApplication(application.id, rejectionReason || undefined);
+      await rejectApplication(session.accessToken, application.id, rejectionReason || undefined);
       setStatus("rejected");
       setShowRejectForm(false);
       setActionFailed(false);
@@ -90,6 +117,25 @@ export default function ApplicationDetailView({ application }: { application: Ap
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 font-sans text-sm text-cream-dim">
+        <SpinnerIcon className="size-5 animate-spin" /> Loading application…
+      </div>
+    );
+  }
+
+  if (!application) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+        <p className="font-sans text-sm text-cream-dim">This application couldn&apos;t be found.</p>
+        <Link href="/applications" className="font-jakarta text-sm font-medium text-gold-bright underline-offset-4 hover:underline">
+          Back to queue
+        </Link>
+      </div>
+    );
   }
 
   return (

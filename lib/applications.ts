@@ -112,21 +112,27 @@ function toApplication(row: ApplicationApiRow, logs: ApplicationLogApiRow[] = []
   };
 }
 
-export async function getApplications(filters: { status?: ApplicationStatus } = {}): Promise<Application[]> {
+export async function getApplications(
+  accessToken: string,
+  filters: { status?: ApplicationStatus } = {},
+): Promise<Application[]> {
   const params = new URLSearchParams({ limit: "100" });
   if (filters.status) params.set("status", filters.status);
   try {
-    const { data } = await apiFetchPaginated<ApplicationApiRow>(`/applications?${params.toString()}`);
+    const { data } = await apiFetchPaginated<ApplicationApiRow>(`/applications?${params.toString()}`, {
+      accessToken,
+    });
     return data.map((row) => toApplication(row));
   } catch {
     return [];
   }
 }
 
-export async function getApplicationById(id: string): Promise<Application | undefined> {
+export async function getApplicationById(accessToken: string, id: string): Promise<Application | undefined> {
   try {
     const { data } = await apiFetch<{ application: ApplicationApiRow; logs: ApplicationLogApiRow[] }>(
       `/applications/${id}`,
+      { accessToken },
     );
     return toApplication(data.application, data.logs);
   } catch {
@@ -134,23 +140,29 @@ export async function getApplicationById(id: string): Promise<Application | unde
   }
 }
 
-export async function getPendingApplicationCount(): Promise<number> {
+export async function getPendingApplicationCount(accessToken: string): Promise<number> {
   try {
-    const { pagination } = await apiFetchPaginated<ApplicationApiRow>("/applications?status=pending&limit=1");
+    const { pagination } = await apiFetchPaginated<ApplicationApiRow>("/applications?status=pending&limit=1", {
+      accessToken,
+    });
     return pagination.total;
   } catch {
     return 0;
   }
 }
 
-export async function approveApplication(id: string): Promise<Application> {
-  const { data } = await apiFetch<ApplicationApiRow>(`/applications/${id}/approve`, { method: "PATCH" });
+export async function approveApplication(accessToken: string, id: string): Promise<Application> {
+  const { data } = await apiFetch<ApplicationApiRow>(`/applications/${id}/approve`, {
+    method: "PATCH",
+    accessToken,
+  });
   return toApplication(data);
 }
 
-export async function rejectApplication(id: string, reason?: string): Promise<Application> {
+export async function rejectApplication(accessToken: string, id: string, reason?: string): Promise<Application> {
   const { data } = await apiFetch<ApplicationApiRow>(`/applications/${id}/reject`, {
     method: "PATCH",
+    accessToken,
     body: reason ? { reason } : {},
   });
   return toApplication(data);

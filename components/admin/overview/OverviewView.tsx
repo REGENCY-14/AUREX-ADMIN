@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { staggerContainer, scrollReveal } from "@/lib/motion";
 import PageHeader from "@/components/admin/PageHeader";
@@ -8,10 +9,11 @@ import { InboxIcon, UsersIcon, LayersIcon, BriefcaseIcon, AlertIcon } from "@/co
 import TrendChart from "@/components/admin/overview/charts/TrendChart";
 import SegmentedBar from "@/components/admin/overview/charts/SegmentedBar";
 import PackagePieChart from "@/components/admin/overview/charts/PackagePieChart";
+import { useSession } from "@/lib/auth";
+import { getApplications, getPendingApplicationCount } from "@/lib/applications";
 import type { MonthlyInvestedPoint, PackageAllocation } from "@/lib/investments";
 
 export type OverviewStats = {
-  pendingApplications: number;
   investorCount: number;
   businessOwnerCount: number;
   openSlotCount: number;
@@ -20,6 +22,8 @@ export type OverviewStats = {
 };
 
 export type ApplicationStatusCounts = { pending: number; approved: number; rejected: number };
+
+const EMPTY_APPLICATION_STATUS_COUNTS: ApplicationStatusCounts = { pending: 0, approved: 0, rejected: 0 };
 
 /**
  * The Admin landing page. Two rows below the header, each pairing a
@@ -52,14 +56,38 @@ export type ApplicationStatusCounts = { pending: number; approved: number; rejec
 export default function OverviewView({
   stats,
   investedTrend,
-  applicationStatusCounts,
   packageAllocation,
 }: {
   stats: OverviewStats;
   investedTrend: MonthlyInvestedPoint[];
-  applicationStatusCounts: ApplicationStatusCounts;
   packageAllocation: PackageAllocation;
 }) {
+  const { session } = useSession();
+  const [pendingApplications, setPendingApplications] = useState(0);
+  const [applicationStatusCounts, setApplicationStatusCounts] = useState(EMPTY_APPLICATION_STATUS_COUNTS);
+
+  // Fetched here (client-side) rather than passed down as a prop from the
+  // server page — the access token this needs only ever exists in the
+  // browser's session store (lib/auth.ts).
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    Promise.all([getApplications(session.accessToken), getPendingApplicationCount(session.accessToken)]).then(
+      ([applications, pending]) => {
+        if (cancelled) return;
+        setPendingApplications(pending);
+        setApplicationStatusCounts({
+          pending: applications.filter((a) => a.status === "pending").length,
+          approved: applications.filter((a) => a.status === "approved").length,
+          rejected: applications.filter((a) => a.status === "rejected").length,
+        });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
   const totalMembers = stats.investorCount + stats.businessOwnerCount;
 
   return (
@@ -75,7 +103,7 @@ export default function OverviewView({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <StatCard
             label="Pending Applications"
-            value={String(stats.pendingApplications)}
+            value={String(pendingApplications)}
             href="/applications?status=pending"
             sublabel="Awaiting review"
             icon={InboxIcon}

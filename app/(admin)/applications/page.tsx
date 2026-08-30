@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ApplicationsView from "@/components/admin/applications/ApplicationsView";
-import { getApplications, type ApplicationStatus } from "@/lib/applications";
+import type { ApplicationStatus } from "@/lib/applications";
 
 export const metadata: Metadata = {
   title: "Applications | AUREX Admin",
@@ -16,5 +16,5 @@ export default async function ApplicationsPage({
   const { status } = await searchParams;
   const initialStatus = (VALID_STATUSES as string[]).includes(status ?? "") ? (status as ApplicationStatus) : "all";
 
-  return <ApplicationsView applications={await getApplications()} initialStatus={initialStatus} />;
+  return <ApplicationsView initialStatus={initialStatus} />;
 }

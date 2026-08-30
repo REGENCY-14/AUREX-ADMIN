@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -11,8 +11,9 @@ import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import Select from "@/components/admin/Select";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
-import { ArrowUpIcon, ArrowDownIcon } from "@/components/icons";
-import type { Application, ApplicationStatus, ApplicationTrack } from "@/lib/applications";
+import { ArrowUpIcon, ArrowDownIcon, SpinnerIcon } from "@/components/icons";
+import { useSession } from "@/lib/auth";
+import { getApplications, type Application, type ApplicationStatus, type ApplicationTrack } from "@/lib/applications";
 
 const STATUS_TONE: Record<ApplicationStatus, BadgeTone> = {
   pending: "neutral",
@@ -52,17 +53,30 @@ const STATUS_OPTIONS = [
  * (?status=pending), same query-param-as-stub-filter convention already
  * used elsewhere.
  */
-export default function ApplicationsView({
-  applications,
-  initialStatus = "all",
-}: {
-  applications: Application[];
-  initialStatus?: ApplicationStatus | "all";
-}) {
+export default function ApplicationsView({ initialStatus = "all" }: { initialStatus?: ApplicationStatus | "all" }) {
   const router = useRouter();
+  const { session } = useSession();
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [trackFilter, setTrackFilter] = useState<ApplicationTrack | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">(initialStatus);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    getApplications(session.accessToken).then((rows) => {
+      if (!cancelled) {
+        setApplications(rows);
+        setIsLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const filtered = useMemo(() => {
     return applications
@@ -111,7 +125,14 @@ export default function ApplicationsView({
         </span>
       </motion.div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <motion.div
+          variants={staggerItem}
+          className="flex items-center justify-center gap-2 border border-grid-line bg-panel/20 p-8 font-sans text-sm text-cream-dim"
+        >
+          <SpinnerIcon className="size-4 animate-spin" /> Loading applications…
+        </motion.div>
+      ) : filtered.length === 0 ? (
         <motion.p variants={staggerItem} className="border border-grid-line bg-panel/20 p-8 text-center font-sans text-sm text-cream-dim">
           No applications match these filters.
         </motion.p>

@@ -19,10 +19,6 @@ export type PaginatedEnvelope<T> = {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 };
 
-function getAdminToken(): string | null {
-  return null;
-}
-
 async function parse<T>(res: Response): Promise<T> {
   const json = await res.json().catch(() => null);
   if (!res.ok || !json?.success) {
@@ -35,28 +31,30 @@ async function parse<T>(res: Response): Promise<T> {
   return json as T;
 }
 
-function authHeaders(): Record<string, string> {
-  const token = getAdminToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+function authHeaders(accessToken?: string | null): Record<string, string> {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 
 export async function apiFetch<T = unknown>(
   path: string,
-  options: { method?: string; body?: unknown } = {},
+  options: { method?: string; body?: unknown; accessToken?: string | null } = {},
 ): Promise<ApiEnvelope<T>> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
     cache: "no-store",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json", ...authHeaders(options.accessToken) },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
   return parse<ApiEnvelope<T>>(res);
 }
 
-export async function apiFetchPaginated<T = unknown>(path: string): Promise<PaginatedEnvelope<T>> {
+export async function apiFetchPaginated<T = unknown>(
+  path: string,
+  options: { accessToken?: string | null } = {},
+): Promise<PaginatedEnvelope<T>> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     cache: "no-store",
-    headers: { ...authHeaders() },
+    headers: { ...authHeaders(options.accessToken) },
   });
   return parse<PaginatedEnvelope<T>>(res);
 }
