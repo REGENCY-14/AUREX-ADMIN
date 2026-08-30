@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import BrandLogo from "@/components/BrandLogo";
+import PageTransition from "@/components/PageTransition";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { useSidebarCollapsed } from "@/lib/sidebarState";
 import { useSession } from "@/lib/auth";
@@ -90,12 +91,8 @@ function UnsupportedViewport() {
  * room for a second element once collapsed.
  *
  * The collapse toggle's state lives in lib/sidebarState.ts, not a plain
- * useState here — per feedback, it needs to stay collapsed across a
- * route change, but PageTransition (components/PageTransition.tsx) keys
- * its wrapper on the pathname, which remounts this whole shell on every
- * navigation. A useState would reset on each of those; the module-level
- * store lib/sidebarState.ts uses (same reasoning as lib/theme.ts) does
- * not. Still not synced to localStorage, so a real page reload starts
+ * useState here — per feedback, it needs to stay collapsed across a route
+ * change. Still not synced to localStorage, so a real page reload starts
  * expanded — the ask was "survives navigating", not "survives a reload".
  *
  * Deliberately no AnimatedBackground here (see that component's own
@@ -236,7 +233,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </div>
         </aside>
 
-        <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col">{children}</main>
+        <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
 
       <ConfirmDialog

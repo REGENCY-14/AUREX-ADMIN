@@ -85,7 +85,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
   const isDecided = status !== "pending";
 
   async function handleApprove() {
-    if (!application || !session) return;
+    if (!application || !session || isSubmitting) return;
     setIsSubmitting(true);
     try {
       await approveApplication(application.id);
@@ -103,7 +103,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
   }
 
   async function handleReject() {
-    if (!application || !session) return;
+    if (!application || !session || isSubmitting) return;
     setIsSubmitting(true);
     try {
       await rejectApplication(application.id, rejectionReason || undefined);
@@ -197,6 +197,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
                 label="Government ID"
                 fileName={application.idDocument.fileName}
                 uploadedAt={application.idDocument.uploadedAt}
+                url={application.idDocument.url}
               />
             )}
             {application.businessRegDocument && (
@@ -204,6 +205,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
                 label="Business Registration Certificate"
                 fileName={application.businessRegDocument.fileName}
                 uploadedAt={application.businessRegDocument.uploadedAt}
+                url={application.businessRegDocument.url}
               />
             )}
           </div>
@@ -222,18 +224,21 @@ export default function ApplicationDetailView({ id }: { id: string }) {
         {!isDecided && !showRejectForm && (
           <div className="flex flex-wrap items-center gap-3">
             <motion.button
-              {...hoverScale}
+              {...(isSubmitting ? {} : hoverScale)}
               type="button"
               onClick={() => setConfirmApproveOpen(true)}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack"
+              disabled={isSubmitting}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <CheckIcon className="size-3.5" /> Approve
+              {isSubmitting ? <SpinnerIcon className="size-3.5 animate-spin" /> : <CheckIcon className="size-3.5" />}
+              {isSubmitting ? "Approving…" : "Approve"}
             </motion.button>
             <motion.button
-              {...hoverScale}
+              {...(isSubmitting ? {} : hoverScale)}
               type="button"
               onClick={() => setShowRejectForm(true)}
-              className="flex items-center gap-1.5 border border-[#f87171]/30 px-5 py-2.5 font-jakarta text-sm font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10"
+              disabled={isSubmitting}
+              className="flex items-center gap-1.5 border border-[#f87171]/30 px-5 py-2.5 font-jakarta text-sm font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <XIcon className="size-3.5" /> Reject
             </motion.button>

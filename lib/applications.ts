@@ -3,7 +3,7 @@ import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
 export type ApplicationTrack = "investor" | "business";
 export type ApplicationStatus = "pending" | "approved" | "rejected";
 
-export type DocumentRef = { fileName: string; uploadedAt: string };
+export type DocumentRef = { fileName: string; uploadedAt: string; url: string };
 
 export type Application = {
   id: string;
@@ -78,7 +78,7 @@ function fileNameFromUrl(url: string | null): string | undefined {
 
 function toDocumentRef(url: string | null, uploadedAt: string): DocumentRef | undefined {
   const fileName = fileNameFromUrl(url);
-  return fileName ? { fileName, uploadedAt } : undefined;
+  return fileName && url ? { fileName, uploadedAt, url } : undefined;
 }
 
 function findRejectionReason(logs: ApplicationLogApiRow[]): string | undefined {

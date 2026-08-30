@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans, DM_Sans, Inter, Manrope, Barlow } from "next/font/google";
 import { MotionConfig } from "framer-motion";
-import PageTransition from "@/components/PageTransition";
 import ThemeToggle from "@/components/ThemeToggle";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
@@ -90,7 +89,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             it), not the list/table-heavy screens every other admin page
             is. */}
         <MotionConfig reducedMotion="user">
-          <PageTransition>{children}</PageTransition>
+          {children}
           {/* Fixed to the viewport, outside the (admin) shell, so it's
               available on every screen including the auth pages, same
               reasoning as the main site's own placement. */}
