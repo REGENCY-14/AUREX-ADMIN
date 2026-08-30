@@ -4,13 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { scrollReveal, hoverScale } from "@/lib/motion";
-import { formatDisplayDate, formatGhs } from "@/lib/formatters";
+import { formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import DocumentPreview from "@/components/admin/DocumentPreview";
 import { ArrowRightIcon, CheckIcon, XIcon } from "@/components/icons";
-import type { Application, ApplicationStatus } from "@/lib/applications";
+import { ApiError } from "@/lib/api/client";
+import { approveApplication, formatFundingRange, rejectApplication, type Application, type ApplicationStatus } from "@/lib/applications";
 
 const STATUS_TONE: Record<ApplicationStatus, BadgeTone> = {
   pending: "neutral",
@@ -52,24 +53,43 @@ export default function ApplicationDetailView({ application }: { application: Ap
   const [rejectionReason, setRejectionReason] = useState(application.rejectionReason ?? "");
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionFailed, setActionFailed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
 
   const isDecided = status !== "pending";
 
-  function handleApprove() {
-    setStatus("approved");
-    setShowRejectForm(false);
-    setActionMessage(
-      `${application.nickname}'s application was approved. This is a stubbed action — nothing is persisted (no backend yet, and this admin app doesn't use localStorage), so a refresh reverts to pending.`
-    );
+  async function handleApprove() {
+    setIsSubmitting(true);
+    try {
+      await approveApplication(application.id);
+      setStatus("approved");
+      setShowRejectForm(false);
+      setActionFailed(false);
+      setActionMessage(`${application.nickname}'s application was approved.`);
+    } catch (err) {
+      setActionFailed(true);
+      setActionMessage(err instanceof ApiError ? `Couldn't approve this application: ${err.message}` : "Something went wrong approving this application.");
+    } finally {
+      setIsSubmitting(false);
+      setConfirmApproveOpen(false);
+    }
   }
 
-  function handleReject() {
-    setStatus("rejected");
-    setShowRejectForm(false);
-    setActionMessage(
-      `${application.nickname}'s application was rejected${rejectionReason ? ` ("${rejectionReason}")` : ""}. This is a stubbed action — nothing is persisted.`
-    );
+  async function handleReject() {
+    setIsSubmitting(true);
+    try {
+      await rejectApplication(application.id, rejectionReason || undefined);
+      setStatus("rejected");
+      setShowRejectForm(false);
+      setActionFailed(false);
+      setActionMessage(`${application.nickname}'s application was rejected${rejectionReason ? ` ("${rejectionReason}")` : ""}.`);
+    } catch (err) {
+      setActionFailed(true);
+      setActionMessage(err instanceof ApiError ? `Couldn't reject this application: ${err.message}` : "Something went wrong rejecting this application.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -86,7 +106,15 @@ export default function ApplicationDetailView({ application }: { application: Ap
       />
 
       {actionMessage && (
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="border border-gold/30 bg-gold/5 p-4 font-sans text-sm text-cream-dim">
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={
+            actionFailed
+              ? "border border-[#f87171]/30 bg-[#f87171]/5 p-4 font-sans text-sm text-[#f87171]"
+              : "border border-gold/30 bg-gold/5 p-4 font-sans text-sm text-cream-dim"
+          }
+        >
           {actionMessage}
         </motion.div>
       )}
@@ -108,25 +136,33 @@ export default function ApplicationDetailView({ application }: { application: Ap
           <h2 className="font-jakarta text-lg font-semibold text-cream">Business Details</h2>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Business Name" value={application.businessName ?? "—"} />
-            <Field label="Funding Goal" value={application.fundingGoalGhs ? formatGhs(application.fundingGoalGhs) : "—"} />
+            <Field label="Funding Range" value={formatFundingRange(application.fundingRange)} />
           </div>
           <Field label="Description" value={application.businessDescription ?? "—"} />
         </motion.section>
       )}
 
-      <motion.section {...scrollReveal} className="flex flex-col gap-4 border border-grid-line bg-panel/20 p-6">
-        <h2 className="font-jakarta text-lg font-semibold text-cream">Documents</h2>
-        <div className="flex flex-col gap-3">
-          <DocumentPreview label="Government ID" fileName={application.idDocument.fileName} uploadedAt={application.idDocument.uploadedAt} />
-          {application.businessRegDocument && (
-            <DocumentPreview
-              label="Business Registration Certificate"
-              fileName={application.businessRegDocument.fileName}
-              uploadedAt={application.businessRegDocument.uploadedAt}
-            />
-          )}
-        </div>
-      </motion.section>
+      {(application.idDocument || application.businessRegDocument) && (
+        <motion.section {...scrollReveal} className="flex flex-col gap-4 border border-grid-line bg-panel/20 p-6">
+          <h2 className="font-jakarta text-lg font-semibold text-cream">Documents</h2>
+          <div className="flex flex-col gap-3">
+            {application.idDocument && (
+              <DocumentPreview
+                label="Government ID"
+                fileName={application.idDocument.fileName}
+                uploadedAt={application.idDocument.uploadedAt}
+              />
+            )}
+            {application.businessRegDocument && (
+              <DocumentPreview
+                label="Business Registration Certificate"
+                fileName={application.businessRegDocument.fileName}
+                uploadedAt={application.businessRegDocument.uploadedAt}
+              />
+            )}
+          </div>
+        </motion.section>
+      )}
 
       <motion.section {...scrollReveal} className="flex flex-col gap-4 border border-grid-line bg-panel/20 p-6">
         <h2 className="font-jakarta text-lg font-semibold text-cream">Decision</h2>
@@ -172,17 +208,19 @@ export default function ApplicationDetailView({ application }: { application: Ap
             </label>
             <div className="flex flex-wrap items-center gap-3">
               <motion.button
-                {...hoverScale}
+                {...(isSubmitting ? {} : hoverScale)}
                 type="button"
                 onClick={handleReject}
-                className="flex items-center gap-1.5 border border-[#f87171]/30 px-5 py-2.5 font-jakarta text-sm font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10"
+                disabled={isSubmitting}
+                className="flex items-center gap-1.5 border border-[#f87171]/30 px-5 py-2.5 font-jakarta text-sm font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <XIcon className="size-3.5" /> Confirm Rejection
+                <XIcon className="size-3.5" /> {isSubmitting ? "Rejecting…" : "Confirm Rejection"}
               </motion.button>
               <button
                 type="button"
                 onClick={() => setShowRejectForm(false)}
-                className="font-sans text-sm text-cream-dim transition-colors hover:text-cream"
+                disabled={isSubmitting}
+                className="font-sans text-sm text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -192,8 +230,7 @@ export default function ApplicationDetailView({ application }: { application: Ap
 
         {isDecided && (
           <p className="font-sans text-sm text-cream-dim">
-            This application has already been {status}. Stubbed for now — a real admin tool would let you reverse a
-            decision from here too.
+            This application has already been {status}.
           </p>
         )}
       </motion.section>

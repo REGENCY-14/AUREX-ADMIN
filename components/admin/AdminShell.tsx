@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTheme } from "@/lib/theme";
 import { useSidebarCollapsed } from "@/lib/sidebarState";
-import { getPendingApplicationCount } from "@/lib/applications";
 import { getOpenReportCount } from "@/lib/reports";
 import {
   GridIcon,
@@ -132,11 +131,17 @@ function UnsupportedViewport({ logo }: { logo: (typeof LOGO)[keyof typeof LOGO] 
  * for every table→card breakpoint in this app, just applied once here
  * instead of per view.
  */
-export default function AdminShell({ children }: { children: React.ReactNode }) {
+export default function AdminShell({
+  children,
+  pendingApplications,
+}: {
+  children: React.ReactNode;
+  pendingApplications: number;
+}) {
   const pathname = usePathname();
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const badgeCounts = {
-    pendingApplications: getPendingApplicationCount(),
+    pendingApplications,
     openReports: getOpenReportCount(),
   } as const;
   // Swaps the logo lockup itself per theme (see LOGO above) rather than

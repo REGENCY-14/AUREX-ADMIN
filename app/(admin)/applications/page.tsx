@@ -16,5 +16,5 @@ export default async function ApplicationsPage({
   const { status } = await searchParams;
   const initialStatus = (VALID_STATUSES as string[]).includes(status ?? "") ? (status as ApplicationStatus) : "all";
 
-  return <ApplicationsView applications={getApplications()} initialStatus={initialStatus} />;
+  return <ApplicationsView applications={await getApplications()} initialStatus={initialStatus} />;
 }

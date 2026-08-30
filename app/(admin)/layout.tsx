@@ -1,4 +1,5 @@
 import AdminShell from "@/components/admin/AdminShell";
+import { getPendingApplicationCount } from "@/lib/applications";
 
 /**
  * Every real admin page lives under this route group, wrapped in the
@@ -7,6 +8,7 @@ import AdminShell from "@/components/admin/AdminShell";
  * future login screen (per the brief, separate/still-undecided work) can
  * live outside this group without inheriting the admin chrome.
  */
-export default function AdminGroupLayout({ children }: { children: React.ReactNode }) {
-  return <AdminShell>{children}</AdminShell>;
+export default async function AdminGroupLayout({ children }: { children: React.ReactNode }) {
+  const pendingApplications = await getPendingApplicationCount();
+  return <AdminShell pendingApplications={pendingApplications}>{children}</AdminShell>;
 }

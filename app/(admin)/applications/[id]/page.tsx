@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default async function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const application = getApplicationById(id);
+  const application = await getApplicationById(id);
   if (!application) notFound();
 
   return <ApplicationDetailView application={application} />;
