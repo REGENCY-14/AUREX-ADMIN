@@ -147,9 +147,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
 
       <PageHeader
         title={application.nickname}
-        description={`${
-          application.track === "investor" ? "Investor" : application.track === "business" ? "Business Owner" : "Admin"
-        } application`}
+        description={`${application.track === "investor" ? "Investor" : "Business Owner"} application`}
         action={<StatusBadge label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} />}
       />
 
@@ -173,10 +171,8 @@ export default function ApplicationDetailView({ id }: { id: string }) {
           <Field label="Nickname" value={application.nickname} />
           <Field label="Full Name" value={application.realName} />
           <Field label="Email" value={application.email} />
-          {/* Admin applications don't collect a phone or country — no
-              point showing empty fields for a track that never has them. */}
-          {application.track !== "admin" && <Field label="Phone" value={application.phone} />}
-          {application.track !== "admin" && <Field label="Country" value={application.country} />}
+          <Field label="Phone" value={application.phone} />
+          <Field label="Country" value={application.country} />
           <Field label="Submitted" value={formatDisplayDate(application.submittedAt)} />
         </div>
       </motion.section>
@@ -296,7 +292,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
         onConfirm={handleApprove}
         title="Approve this application?"
         description={`${application.nickname} will be admitted to the platform as ${
-          application.track === "investor" ? "an investor" : application.track === "business" ? "a business owner" : "an admin"
+          application.track === "investor" ? "an investor" : "a business owner"
         }.`}
         confirmLabel="Approve"
         tone="gold"

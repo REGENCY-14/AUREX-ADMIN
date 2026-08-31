@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift } from "@/lib/motion";
 import { formatDisplayDate } from "@/lib/formatters";
@@ -10,27 +12,28 @@ import StatusDot from "@/components/admin/StatusDot";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
 import ActionsMenu, { type ActionMenuItem } from "@/components/admin/ActionsMenu";
-import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME } from "@/components/admin/tableStyles";
+import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
 import { CheckIcon, XIcon, SearchIcon, SpinnerIcon, UserIcon } from "@/components/icons";
+import { ApiError } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
-import { fetchAdmins, type Admin, type AdminStatus } from "@/lib/admins";
+import { approveAdmin, fetchAdmins, rejectAdmin, type Admin, type AdminStatus } from "@/lib/admins";
 
 const STATUS_TONE: Record<AdminStatus, BadgeTone> = {
   pending: "neutral",
   active: "gold",
   suspended: "danger",
+  rejected: "danger",
 };
 
 const STATUS_LABEL: Record<AdminStatus, string> = {
   pending: "Pending",
   active: "Active",
   suspended: "Suspended",
+  rejected: "Rejected",
 };
 
-type AdminAction = "approve" | "reject" | "suspend" | "reactivate";
+type AdminAction = "approve" | "reject";
 
-/** Copy for the one shared ConfirmDialog below, keyed by action — same
- *  lookup-over-ternary-chain convention as SlotsView's own CONFIRM_COPY. */
 const CONFIRM_COPY: Record<
   AdminAction,
   { title: string; description: (admin: Admin) => string; confirmLabel: string; tone: "gold" | "danger" }
@@ -47,37 +50,34 @@ const CONFIRM_COPY: Record<
     confirmLabel: "Reject",
     tone: "danger",
   },
-  suspend: {
-    title: "Suspend this admin?",
-    description: (admin) => `${admin.nickname} will lose admin access until reactivated.`,
-    confirmLabel: "Suspend",
-    tone: "danger",
-  },
-  reactivate: {
-    title: "Reactivate this admin?",
-    description: (admin) => `${admin.nickname} will regain full admin access.`,
-    confirmLabel: "Reactivate",
-    tone: "gold",
-  },
 };
 
+function SuperAdminTag() {
+  return (
+    <span className="rounded-full bg-gold/15 px-2 py-0.5 font-jakarta text-[10px] font-semibold uppercase tracking-wide text-gold-bright">
+      Super Admin
+    </span>
+  );
+}
+
 /**
- * Admin account management — every admin-role user, including ones still
- * awaiting approval from `/auth/register-admin` (a real, working
- * endpoint — see RegisterView) and backed by the real `/users` endpoint
- * (also real, admin-only). What Aurex-backend doesn't have yet is any
- * approve/reject/suspend endpoint for these accounts, so — same
- * situation MemberDetailView's own suspend toggle was already in before
- * `/members` grew a real backend — these actions are honest local-only
- * stubs (`applyAction` below) rather than calls to a guessed endpoint
- * that would just 404. Swap that in once the backend exposes one.
+ * Admin account roster — every admin-role user, including ones still
+ * awaiting approval from `/auth/register-admin`. Backed by the real
+ * `/admins` endpoints. Approving/rejecting a pending admin and clicking
+ * through to a full profile (AdminDetailView) are super-admin-only,
+ * enforced server-side (a regular admin's calls to those routes 403) and
+ * mirrored here so a regular admin simply doesn't see those controls.
  */
 export default function AdminsView() {
+  const router = useRouter();
   const { session } = useSession();
+  const isSuperAdmin = session?.user.isSuperAdmin ?? false;
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionFailed, setActionFailed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: AdminAction; admin: Admin } | null>(null);
 
   useEffect(() => {
@@ -105,32 +105,51 @@ export default function AdminsView() {
   }, [admins, query]);
 
   function actionItems(admin: Admin): ActionMenuItem[] {
-    if (admin.status === "pending") {
-      return [
-        { key: "approve", label: "Approve", tone: "gold", icon: CheckIcon, onClick: () => setConfirmAction({ type: "approve", admin }) },
-        { key: "reject", label: "Reject", tone: "danger", icon: XIcon, onClick: () => setConfirmAction({ type: "reject", admin }) },
-      ];
-    }
-    if (admin.status === "active") {
-      return [{ key: "suspend", label: "Suspend", tone: "danger", onClick: () => setConfirmAction({ type: "suspend", admin }) }];
-    }
-    return [{ key: "reactivate", label: "Reactivate", tone: "gold", onClick: () => setConfirmAction({ type: "reactivate", admin }) }];
+    if (!isSuperAdmin || admin.status !== "pending") return [];
+    return [
+      {
+        key: "approve",
+        label: "Approve",
+        tone: "gold",
+        icon: CheckIcon,
+        onClick: () => setConfirmAction({ type: "approve", admin }),
+      },
+      {
+        key: "reject",
+        label: "Reject",
+        tone: "danger",
+        icon: XIcon,
+        onClick: () => setConfirmAction({ type: "reject", admin }),
+      },
+    ];
   }
 
-  function applyAction() {
-    if (!confirmAction) return;
+  async function applyAction() {
+    if (!confirmAction || isSubmitting) return;
     const { type, admin } = confirmAction;
-    const next: AdminStatus | null = type === "approve" || type === "reactivate" ? "active" : type === "suspend" ? "suspended" : null;
-    if (next) {
-      setAdmins((prev) => prev.map((a) => (a.id === admin.id ? { ...a, status: next } : a)));
-    } else {
-      // Rejecting a pending request drops it from the list entirely,
-      // same as it never having shown up here — there's no "rejected
-      // admin" state worth keeping visible.
-      setAdmins((prev) => prev.filter((a) => a.id !== admin.id));
+    setIsSubmitting(true);
+    try {
+      if (type === "approve") {
+        await approveAdmin(admin.id);
+        setAdmins((prev) => prev.map((a) => (a.id === admin.id ? { ...a, status: "active" } : a)));
+        setActionMessage(`${admin.nickname} was approved.`);
+      } else {
+        await rejectAdmin(admin.id);
+        setAdmins((prev) => prev.map((a) => (a.id === admin.id ? { ...a, status: "rejected" } : a)));
+        setActionMessage(`${admin.nickname}'s request was rejected.`);
+      }
+      setActionFailed(false);
+    } catch (err) {
+      setActionFailed(true);
+      setActionMessage(
+        err instanceof ApiError
+          ? `Couldn't ${type} this admin: ${err.message}`
+          : `Something went wrong trying to ${type} this admin.`,
+      );
+    } finally {
+      setIsSubmitting(false);
+      setConfirmAction(null);
     }
-    const verb = type === "approve" ? "approved" : type === "reject" ? "rejected" : type === "suspend" ? "suspended" : "reactivated";
-    setActionMessage(`${admin.nickname} was ${verb}. Stubbed: nothing is persisted (no backend yet).`);
   }
 
   return (
@@ -146,7 +165,11 @@ export default function AdminsView() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="border border-gold/30 bg-gold/5 p-4 font-sans text-sm text-cream-dim"
+          className={
+            actionFailed
+              ? "border border-[#f87171]/30 bg-[#f87171]/5 p-4 font-sans text-sm text-[#f87171]"
+              : "border border-gold/30 bg-gold/5 p-4 font-sans text-sm text-cream-dim"
+          }
         >
           {actionMessage}
         </motion.div>
@@ -208,55 +231,83 @@ export default function AdminsView() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((admin) => (
-                  <motion.tr
-                    key={admin.id}
-                    {...hoverLift}
-                    className={`border-b border-grid-line last:border-b-0 ${admin.status === "suspended" ? DANGER_ROW_CLASSNAME : ""}`}
-                  >
-                    <td className="p-0">
-                      <div className="flex items-center gap-3 px-4 py-3">
-                        <span className={AVATAR_CLASSNAME}>{admin.nickname.slice(0, 2).toUpperCase()}</span>
-                        <span className="font-jakarta text-sm font-medium text-cream">{admin.nickname}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-sans text-sm text-cream-dim">{admin.realName}</td>
-                    <td className="px-4 py-3 font-sans text-sm text-cream-dim">{admin.email}</td>
-                    <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatDisplayDate(admin.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <StatusDot label={STATUS_LABEL[admin.status]} tone={STATUS_TONE[admin.status]} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <ActionsMenu label={`${admin.nickname} actions`} items={actionItems(admin)} />
-                    </td>
-                  </motion.tr>
-                ))}
+                {filtered.map((admin) => {
+                  const items = actionItems(admin);
+                  return (
+                    <motion.tr
+                      key={admin.id}
+                      {...hoverLift}
+                      onClick={isSuperAdmin ? handleRowClick(router, `/admins/${admin.id}`) : undefined}
+                      className={`border-b border-grid-line last:border-b-0 ${isSuperAdmin ? "cursor-pointer hover:bg-panel/30" : ""} ${
+                        admin.status === "suspended" || admin.status === "rejected" ? DANGER_ROW_CLASSNAME : ""
+                      }`}
+                    >
+                      <td className="p-0">
+                        {isSuperAdmin ? (
+                          <Link href={`/admins/${admin.id}`} className="flex items-center gap-3 px-4 py-3">
+                            <span className={AVATAR_CLASSNAME}>{admin.nickname.slice(0, 2).toUpperCase()}</span>
+                            <span className="font-jakarta text-sm font-medium text-cream">{admin.nickname}</span>
+                            {admin.isSuperAdmin && <SuperAdminTag />}
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <span className={AVATAR_CLASSNAME}>{admin.nickname.slice(0, 2).toUpperCase()}</span>
+                            <span className="font-jakarta text-sm font-medium text-cream">{admin.nickname}</span>
+                            {admin.isSuperAdmin && <SuperAdminTag />}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">{admin.realName}</td>
+                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">{admin.email}</td>
+                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatDisplayDate(admin.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <StatusDot label={STATUS_LABEL[admin.status]} tone={STATUS_TONE[admin.status]} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {items.length > 0 && <ActionsMenu label={`${admin.nickname} actions`} items={items} />}
+                      </td>
+                    </motion.tr>
+                  );
+                })}
               </tbody>
             </table>
           </motion.div>
 
           <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
-            {filtered.map((admin) => (
-              <div
-                key={admin.id}
-                className={`flex flex-col gap-3 border border-grid-line bg-panel/20 p-4 ${admin.status === "suspended" ? DANGER_ROW_CLASSNAME : ""}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className={AVATAR_CLASSNAME}>{admin.nickname.slice(0, 2).toUpperCase()}</span>
-                    <span className="font-jakarta text-sm font-semibold text-cream">{admin.nickname}</span>
+            {filtered.map((admin) => {
+              const items = actionItems(admin);
+              return (
+                <div
+                  key={admin.id}
+                  onClick={isSuperAdmin ? handleRowClick(router, `/admins/${admin.id}`) : undefined}
+                  className={`flex flex-col gap-3 border border-grid-line bg-panel/20 p-4 ${isSuperAdmin ? "cursor-pointer" : ""} ${
+                    admin.status === "suspended" || admin.status === "rejected" ? DANGER_ROW_CLASSNAME : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className={AVATAR_CLASSNAME}>{admin.nickname.slice(0, 2).toUpperCase()}</span>
+                      {isSuperAdmin ? (
+                        <Link href={`/admins/${admin.id}`} className="font-jakarta text-sm font-semibold text-cream">
+                          {admin.nickname}
+                        </Link>
+                      ) : (
+                        <span className="font-jakarta text-sm font-semibold text-cream">{admin.nickname}</span>
+                      )}
+                      {admin.isSuperAdmin && <SuperAdminTag />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusDot label={STATUS_LABEL[admin.status]} tone={STATUS_TONE[admin.status]} />
+                      {items.length > 0 && <ActionsMenu label={`${admin.nickname} actions`} items={items} />}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <StatusDot label={STATUS_LABEL[admin.status]} tone={STATUS_TONE[admin.status]} />
-                    <ActionsMenu label={`${admin.nickname} actions`} items={actionItems(admin)} />
-                  </div>
+                  <span className="font-sans text-sm text-cream-dim">
+                    {admin.realName} · {admin.email}
+                  </span>
+                  <span className="font-sans text-xs text-cream-dim">Joined {formatDisplayDate(admin.createdAt)}</span>
                 </div>
-                <span className="font-sans text-sm text-cream-dim">
-                  {admin.realName} · {admin.email}
-                </span>
-                <span className="font-sans text-xs text-cream-dim">Joined {formatDisplayDate(admin.createdAt)}</span>
-              </div>
-            ))}
+              );
+            })}
           </motion.div>
         </>
       )}

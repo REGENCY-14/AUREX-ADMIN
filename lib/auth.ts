@@ -8,6 +8,7 @@ export type SessionUser = {
   nickname: string | null;
   email: string | null;
   role: string | null;
+  isSuperAdmin: boolean;
 };
 
 export type Session = {

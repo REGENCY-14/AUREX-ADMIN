@@ -31,14 +31,12 @@ const STATUS_LABEL: Record<ApplicationStatus, string> = {
 const TRACK_LABEL: Record<ApplicationTrack, string> = {
   investor: "Investor",
   business: "Business Owner",
-  admin: "Admin",
 };
 
 const TRACK_OPTIONS = [
   { value: "all", label: "All Tracks" },
   { value: "investor", label: "Investor" },
   { value: "business", label: "Business Owner" },
-  { value: "admin", label: "Admin" },
 ];
 
 const STATUS_OPTIONS = [
@@ -100,7 +98,7 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
     >
       <PageHeader
         title="Application Review Queue"
-        description="Review and decide on investor, business owner, and admin applications."
+        description="Review and decide on investor and business owner applications."
       />
 
       <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
@@ -143,7 +141,7 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
           <EmptyState
             icon={InboxIcon}
             title="No applications yet"
-            description="Investor, business owner, and admin applications will show up here as soon as people start applying."
+            description="Investor and business owner applications will show up here as soon as people start applying."
           />
         ) : (
           <EmptyState

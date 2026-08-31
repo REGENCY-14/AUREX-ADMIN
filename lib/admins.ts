@@ -1,19 +1,15 @@
 /**
  * Admin-role accounts, including ones still awaiting approval from
  * `/auth/register-admin` (see RegisterView's own "an existing admin will
- * need to approve your account" copy). Aurex-backend has no dedicated
- * pending-admin list endpoint yet — `/users` (list all users, admin-only)
- * is the only one that reaches these accounts today, so this fetches
- * everyone and filters to `role: "admin"` client-side, same "fetch
- * broad, filter locally" convention already used for applications/
- * members. There's likewise no approve/reject/suspend endpoint for
- * these accounts yet — see AdminsView's own comment for how that's
- * handled.
+ * need to approve your account" copy). Backed by Aurex-backend's
+ * dedicated `/admins` endpoints — list is admin-only, everything else
+ * (full profile, approve, reject) is super-admin-only, enforced
+ * server-side, so a regular admin's requests to those routes 403.
  */
 
-import { apiFetchPaginated } from "@/lib/api/client";
+import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
 
-export type AdminStatus = "pending" | "active" | "suspended";
+export type AdminStatus = "pending" | "active" | "suspended" | "rejected";
 
 export type Admin = {
   id: string;
@@ -26,43 +22,112 @@ export type Admin = {
   createdAt: string;
 };
 
-// Matches the shape /auth/register-admin's own response returns for its
-// `user` object (confirmed directly against the live backend — this
-// isn't in Aurex-backend's Swagger docs, which are stale for anything
-// admin-related).
-type UserApiRow = {
+export type AdminDetail = Admin & {
+  verified: boolean;
+  permissions: string[];
+};
+
+// Matches adminsService.list's flat, snake_case row shape.
+type AdminListApiRow = {
   id: string;
   nickname: string | null;
   firstname: string | null;
   lastname: string | null;
   email: string | null;
   phone: string | null;
-  status: string | null;
+  status: AdminStatus;
+  is_active: boolean;
+  is_super_admin: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+// Matches toUserGetDto's camelCase shape, returned by GET /admins/:id.
+type AdminDetailApiRow = {
+  id: string;
+  nickname: string | null;
+  firstname: string | null;
+  lastname: string | null;
+  email: string | null;
+  phone: string | null;
+  status: AdminStatus;
+  verified: boolean;
   isActive: boolean;
   isSuperAdmin: boolean;
+  permissions: string[];
   role: string | null;
   createdAt: string;
 };
 
-function toAdmin(row: UserApiRow): Admin {
-  const realName = [row.firstname, row.lastname].filter(Boolean).join(" ");
+function realNameOf(firstname: string | null, lastname: string | null): string {
+  return [firstname, lastname].filter(Boolean).join(" ") || "—";
+}
+
+function toAdmin(row: AdminListApiRow): Admin {
+  const realName = realNameOf(row.firstname, row.lastname);
   return {
     id: row.id,
-    nickname: row.nickname || realName || "—",
-    realName: realName || "—",
+    nickname: row.nickname || realName,
+    realName,
     email: row.email ?? "",
     phone: row.phone ?? "",
-    status: row.isActive ? "active" : row.status === "suspended" ? "suspended" : "pending",
-    isSuperAdmin: row.isSuperAdmin,
-    createdAt: row.createdAt,
+    status: row.status,
+    isSuperAdmin: row.is_super_admin,
+    createdAt: row.created_at,
   };
 }
 
-export async function fetchAdmins(): Promise<Admin[]> {
+function toAdminDetail(row: AdminDetailApiRow): AdminDetail {
+  const realName = realNameOf(row.firstname, row.lastname);
+  return {
+    id: row.id,
+    nickname: row.nickname || realName,
+    realName,
+    email: row.email ?? "",
+    phone: row.phone ?? "",
+    status: row.status,
+    isSuperAdmin: row.isSuperAdmin,
+    createdAt: row.createdAt,
+    verified: row.verified,
+    permissions: row.permissions,
+  };
+}
+
+export async function fetchAdmins(filters: { status?: AdminStatus } = {}): Promise<Admin[]> {
+  const params = new URLSearchParams({ limit: "100" });
+  if (filters.status) params.set("status", filters.status);
   try {
-    const { data } = await apiFetchPaginated<UserApiRow>("/users?limit=100");
-    return data.filter((row) => row.role === "admin").map(toAdmin);
+    const { data } = await apiFetchPaginated<AdminListApiRow>(`/admins?${params.toString()}`);
+    return data.map(toAdmin);
   } catch {
     return [];
   }
+}
+
+export async function getPendingAdminCount(): Promise<number> {
+  try {
+    const { pagination } = await apiFetchPaginated<AdminListApiRow>("/admins?status=pending&limit=1");
+    return pagination.total;
+  } catch {
+    return 0;
+  }
+}
+
+/** Super-admin only — 403s for a regular admin, so callers should only
+ *  reach for this behind a `session.user.isSuperAdmin` check. */
+export async function fetchAdminById(id: string): Promise<AdminDetail | undefined> {
+  try {
+    const { data } = await apiFetch<AdminDetailApiRow>(`/admins/${id}`);
+    return toAdminDetail(data);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function approveAdmin(id: string): Promise<void> {
+  await apiFetch(`/admins/${id}/approve`, { method: "PATCH" });
+}
+
+export async function rejectAdmin(id: string): Promise<void> {
+  await apiFetch(`/admins/${id}/reject`, { method: "PATCH" });
 }
