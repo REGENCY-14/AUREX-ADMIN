@@ -9,7 +9,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import DocumentPreview from "@/components/admin/DocumentPreview";
-import { ArrowRightIcon, CheckIcon, SpinnerIcon, XIcon } from "@/components/icons";
+import { ArrowRightIcon, CheckIcon, MailIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import {
@@ -17,6 +17,7 @@ import {
   formatFundingRange,
   getApplicationById,
   rejectApplication,
+  resendApplicationActivation,
   type Application,
   type ApplicationStatus,
 } from "@/lib/applications";
@@ -64,6 +65,7 @@ export default function ApplicationDetailView({ id }: { id: string }) {
   const [actionFailed, setActionFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -116,6 +118,23 @@ export default function ApplicationDetailView({ id }: { id: string }) {
       setActionMessage(err instanceof ApiError ? `Couldn't reject this application: ${err.message}` : "Something went wrong rejecting this application.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleResendActivation() {
+    if (!application || !session || isResending) return;
+    setIsResending(true);
+    try {
+      await resendApplicationActivation(application.id);
+      setActionFailed(false);
+      setActionMessage(`Activation link resent to ${application.nickname}.`);
+    } catch (err) {
+      setActionFailed(true);
+      setActionMessage(
+        err instanceof ApiError ? `Couldn't resend the activation link: ${err.message}` : "Something went wrong resending the activation link.",
+      );
+    } finally {
+      setIsResending(false);
     }
   }
 
@@ -279,9 +298,25 @@ export default function ApplicationDetailView({ id }: { id: string }) {
           </div>
         )}
 
-        {isDecided && (
+        {isDecided && status === "approved" && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-sans text-sm text-cream-dim">This application has already been approved.</p>
+            <motion.button
+              {...(isResending ? {} : hoverScale)}
+              type="button"
+              onClick={handleResendActivation}
+              disabled={isResending}
+              className="flex items-center gap-1.5 border border-gold/30 px-5 py-2.5 font-jakarta text-sm font-medium text-gold-bright transition-colors hover:border-gold/60 hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isResending ? <SpinnerIcon className="size-3.5 animate-spin" /> : <MailIcon className="size-3.5" />}
+              {isResending ? "Resending…" : "Resend confirmation link"}
+            </motion.button>
+          </div>
+        )}
+
+        {isDecided && status === "rejected" && (
           <p className="font-sans text-sm text-cream-dim">
-            This application has already been {status}.
+            This application has already been rejected.
           </p>
         )}
       </motion.section>

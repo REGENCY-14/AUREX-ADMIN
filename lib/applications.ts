@@ -160,3 +160,7 @@ export async function rejectApplication(id: string, reason?: string): Promise<Ap
   });
   return toApplication(data);
 }
+
+export async function resendApplicationActivation(id: string): Promise<void> {
+  await apiFetch(`/applications/${id}/resend-activation`, { method: "POST" });
+}
