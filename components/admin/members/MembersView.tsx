@@ -147,7 +147,7 @@ export default function MembersView() {
 
           <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
             {filtered.map((member) => (
-              <motion.div key={member.id} {...hoverLift}>
+              <motion.div key={`filtered-${member.id}`} {...hoverLift}>
                 <Link
                   href={`/members/${member.id}`}
                   className={`flex flex-col gap-2 border border-grid-line bg-panel/20 p-4 ${
