@@ -129,12 +129,16 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const { session, logout } = useSession();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [pendingApplications, setPendingApplications] = useState(0);
+  const [openReports, setOpenReports] = useState(0);
 
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
     void getPendingApplicationCount().then((count) => {
       if (!cancelled) setPendingApplications(count);
+    });
+    void getOpenReportCount().then((count) => {
+      if (!cancelled) setOpenReports(count);
     });
     return () => {
       cancelled = true;
@@ -143,7 +147,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   const badgeCounts = {
     pendingApplications,
-    openReports: getOpenReportCount(),
+    openReports,
   } as const;
 
   return (

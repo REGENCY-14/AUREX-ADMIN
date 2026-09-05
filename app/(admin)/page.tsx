@@ -20,7 +20,7 @@ export const metadata: Metadata = {
  * own always-visible endpoint label already carries that figure, so
  * OverviewView no longer takes it as a separate prop.
  */
-export default function OverviewPage() {
+export default async function OverviewPage() {
   const members = getMembers();
 
   const stats = {
@@ -28,7 +28,7 @@ export default function OverviewPage() {
     businessOwnerCount: members.filter((m) => m.track === "business").length,
     openSlotCount: getInvestmentSlots().filter((s) => s.status === "open").length,
     liveListingCount: getBusinessListings().filter((l) => l.status === "live").length,
-    openReportCount: getOpenReportCount(),
+    openReportCount: await getOpenReportCount(),
   };
 
   return <OverviewView stats={stats} investedTrend={getMonthlyInvestedTrend()} packageAllocation={getInvestedByPackage()} />;

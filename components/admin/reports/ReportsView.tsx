@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -13,19 +13,10 @@ import PriorityTag from "@/components/admin/reports/PriorityTag";
 import Select from "@/components/admin/Select";
 import EmptyState from "@/components/admin/EmptyState";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
-import { ArrowUpIcon, ArrowDownIcon, BookIcon, SearchIcon } from "@/components/icons";
-import {
-  CATEGORY_LABEL,
-  PRIORITY_LABEL,
-  PRIORITY_RANK,
-  STATUS_LABEL,
-  STATUS_RANK,
-  type Report,
-  type ReportCategory,
-  type ReportPriority,
-  type ReportStatus,
-} from "@/lib/reports";
-import type { Member, MemberTrack } from "@/lib/members";
+import { ArrowUpIcon, ArrowDownIcon, BookIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
+import { useSession } from "@/lib/auth";
+import { getReports, PRIORITY_LABEL, PRIORITY_RANK, STATUS_LABEL, STATUS_RANK, type Report, type ReportPriority, type ReportStatus } from "@/lib/reports";
+import { fetchMembers, type Member, type MemberTrack } from "@/lib/members";
 
 const STATUS_TONE: Record<ReportStatus, BadgeTone> = {
   open: "neutral",
@@ -49,11 +40,6 @@ const ROLE_OPTIONS = [
   { value: "all", label: "All Roles" },
   { value: "investor", label: "Investor" },
   { value: "business", label: "Business Owner" },
-];
-
-const CATEGORY_OPTIONS = [
-  { value: "all", label: "All Categories" },
-  ...(Object.keys(CATEGORY_LABEL) as ReportCategory[]).map((c) => ({ value: c, label: CATEGORY_LABEL[c] })),
 ];
 
 const PRIORITY_OPTIONS = [
@@ -124,33 +110,54 @@ function SortButton({
 
 /**
  * The Report/Complaint Inbox list — reports Investors and Business
- * Owners filed via their dashboard's "Report" tab. Filter/sort state
- * lives here (client component); `reports` and `membersById` are plain
- * data from the server page, `initialStatus` seeds the filter from the
- * Overview page's own "Open Reports" stat link (?status=open), same
- * query-param-as-stub-filter convention as ApplicationsView/SlotsView.
- *
- * Default sort is the "triage" order (see compareReports) rather than a
- * plain date sort — per the brief, open + high-priority reports should
- * surface first without Admin having to ask for that explicitly. The
- * Date/Priority buttons opt into a plain single-key sort instead.
+ * Owners filed via their dashboard's "Report" tab. Session-gated fetch
+ * (mirrors ApplicationsView.tsx): loads up to 100 reports plus every
+ * member once, then all filtering/sorting happens client-side in a
+ * useMemo — same convention as ApplicationsView, even though the backend
+ * itself also supports server-side filter/sort query params.
+ * `initialStatus` seeds the filter from the Overview page's own "Open
+ * Reports" stat link (?status=open).
  */
-export default function ReportsView({
-  reports,
-  membersById,
-  initialStatus = "all",
-}: {
-  reports: Report[];
-  membersById: Record<string, Member>;
-  initialStatus?: ReportStatus | "all";
-}) {
+export default function ReportsView({ initialStatus = "all" }: { initialStatus?: ReportStatus | "all" }) {
   const router = useRouter();
+  const { session } = useSession();
+  const [reports, setReports] = useState<Report[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState<MemberTrack | "all">("all");
-  const [categoryFilter, setCategoryFilter] = useState<ReportCategory | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<ReportPriority | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">(initialStatus);
   const [sortKey, setSortKey] = useState<SortKey>("triage");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    Promise.all([getReports(), fetchMembers()]).then(([reportRows, memberRows]) => {
+      if (cancelled) return;
+      setReports(reportRows);
+      setMembers(memberRows);
+      setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  const membersById = useMemo(() => {
+    return members.reduce<Record<string, Member>>((acc, member) => {
+      acc[member.id] = member;
+      return acc;
+    }, {});
+  }, [members]);
+
+  const categoryOptions = useMemo(() => {
+    const seen = Array.from(new Set(reports.map((r) => r.category))).sort();
+    return [{ value: "all", label: "All Categories" }, ...seen.map((c) => ({ value: c, label: c }))];
+  }, [reports]);
 
   function toggleSort(key: Exclude<SortKey, "triage">) {
     if (sortKey === key) {
@@ -170,6 +177,14 @@ export default function ReportsView({
       .sort((a, b) => compareReports(a, b, sortKey, sortDir));
   }, [reports, membersById, roleFilter, categoryFilter, priorityFilter, statusFilter, sortKey, sortDir]);
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 font-sans text-sm text-cream-dim">
+        <SpinnerIcon className="size-5 animate-spin" /> Loading reports…
+      </div>
+    );
+  }
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -183,8 +198,8 @@ export default function ReportsView({
         <Select value={roleFilter} onChange={(v) => setRoleFilter(v as MemberTrack | "all")} options={ROLE_OPTIONS} ariaLabel="Filter by role" />
         <Select
           value={categoryFilter}
-          onChange={(v) => setCategoryFilter(v as ReportCategory | "all")}
-          options={CATEGORY_OPTIONS}
+          onChange={(v) => setCategoryFilter(v)}
+          options={categoryOptions}
           ariaLabel="Filter by category"
         />
         <Select
@@ -275,7 +290,7 @@ export default function ReportsView({
                         </Link>
                       </td>
                       <td className="px-4 py-3 font-sans text-sm text-cream-dim">{member ? TRACK_LABEL[member.track] : "—"}</td>
-                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">{CATEGORY_LABEL[report.category]}</td>
+                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">{report.category}</td>
                       <td className="max-w-64 truncate px-4 py-3 font-sans text-sm text-cream-dim">{report.subject}</td>
                       <td className="px-4 py-3">
                         <PriorityTag label={PRIORITY_LABEL[report.priority]} tone={PRIORITY_TONE[report.priority]} />
@@ -315,7 +330,7 @@ export default function ReportsView({
                     <span className="font-sans text-sm text-cream">{report.subject}</span>
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-cream-dim">
                       <span>
-                        {member ? TRACK_LABEL[member.track] : "—"} · {CATEGORY_LABEL[report.category]}
+                        {member ? TRACK_LABEL[member.track] : "—"} · {report.category}
                       </span>
                       <PriorityTag label={PRIORITY_LABEL[report.priority]} tone={PRIORITY_TONE[report.priority]} />
                     </div>

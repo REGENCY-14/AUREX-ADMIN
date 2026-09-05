@@ -1,27 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { scrollReveal, hoverScale } from "@/lib/motion";
-import { formatDisplayDate, formatGhs, buildWhatsAppLink } from "@/lib/formatters";
+import { formatDisplayDate, buildWhatsAppLink } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import StatusBadge, { type BadgeTone } from "@/components/admin/StatusBadge";
 import Select from "@/components/admin/Select";
 import DocumentPreview from "@/components/admin/DocumentPreview";
-import { ArrowRightIcon, ChatIcon } from "@/components/icons";
+import { ArrowRightIcon, ChatIcon, SpinnerIcon } from "@/components/icons";
+import { ApiError } from "@/lib/api/client";
+import { useSession } from "@/lib/auth";
 import {
-  CATEGORY_LABEL,
+  getReportById,
+  respondToReport,
   PRIORITY_LABEL,
   STATUS_LABEL,
   type Report,
   type ReportPriority,
   type ReportStatus,
 } from "@/lib/reports";
-import type { Member, MemberTrack } from "@/lib/members";
-import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
-import type { InvestmentRecord } from "@/lib/investments";
-import type { BusinessListing } from "@/lib/businessListings";
+import { fetchMemberById, type Member, type MemberTrack } from "@/lib/members";
 
 const STATUS_TONE: Record<ReportStatus, BadgeTone> = {
   open: "neutral",
@@ -53,46 +53,89 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * The Report detail/response screen. Status + Admin response are saved
- * together via one "Save" action into this component's own React state —
- * same stubbed-action caveat as every other detail view in this admin
- * (ApplicationDetailView, MemberDetailView): no backend, no client
- * storage, so a refresh reverts to the original mock. Flagged inline via
- * `actionMessage` rather than pretending it's persisted.
- *
- * `scrollReveal` per section — this is a genuinely long detail view
- * (reporter + report details + an optional attachment + the response
- * form), same "reveals as you scroll" treatment ApplicationDetailView
- * uses for the same reason.
+ * The Report detail/response screen. Fetches its own data (mirrors
+ * ApplicationDetailView.tsx) — `id` is all the parent route needs to pass
+ * down. The "related record" is shown as a plain label rather than a
+ * clickable link into the investment/listing it names: the backend only
+ * snapshots that label as text (see reports.table.ts's own comment), since
+ * there's no admin-facing investments/listings lookup endpoint to
+ * re-resolve a live link against.
  */
-export default function ReportDetailView({
-  report,
-  member,
-  relatedListing,
-  relatedInvestment,
-  relatedSlot,
-}: {
-  report: Report;
-  member?: Member;
-  relatedListing?: BusinessListing;
-  relatedInvestment?: InvestmentRecord;
-  relatedSlot?: InvestmentSlot;
-}) {
-  const [status, setStatus] = useState<ReportStatus>(report.status);
-  const [response, setResponse] = useState(report.adminResponse ?? "");
+export default function ReportDetailView({ id }: { id: string }) {
+  const { session } = useSession();
+  const [report, setReport] = useState<Report | null>(null);
+  const [member, setMember] = useState<Member | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState<ReportStatus>("open");
+  const [response, setResponse] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionFailed, setActionFailed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSave() {
-    setActionMessage(
-      `Status set to “${STATUS_LABEL[status]}”${response.trim() ? " and your response was saved" : ""}, visible to ${
-        member?.nickname ?? "the reporter"
-      } in their My Reports view. This is a stubbed action: nothing is persisted (no backend yet), so a refresh reverts to the original values.`
-    );
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    getReportById(id).then(async (result) => {
+      if (cancelled) return;
+      setReport(result ?? null);
+      setStatus(result?.status ?? "open");
+      setResponse(result?.adminResponse ?? "");
+      if (result) {
+        const memberResult = await fetchMemberById(result.memberId);
+        if (!cancelled) setMember(memberResult);
+      }
+      setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, id]);
+
+  async function handleSave() {
+    if (!report || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const updated = await respondToReport(report.id, status, response.trim() || undefined);
+      setReport(updated);
+      setStatus(updated.status);
+      setActionFailed(false);
+      setActionMessage(
+        `Status set to "${STATUS_LABEL[updated.status]}"${response.trim() ? " and your response was saved" : ""}, visible to ${
+          member?.nickname ?? "the reporter"
+        } in their My Reports view.`,
+      );
+    } catch (err) {
+      setActionFailed(true);
+      setActionMessage(err instanceof ApiError ? `Couldn't save this report: ${err.message}` : "Something went wrong saving this report.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const whatsAppHref = member
-    ? buildWhatsAppLink(member.phone, `Hi ${member.nickname}, this is AUREX Admin regarding your report "${report.subject}".`)
+    ? buildWhatsAppLink(member.phone, `Hi ${member.nickname}, this is AUREX Admin regarding your report "${report?.subject ?? ""}".`)
     : undefined;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 font-sans text-sm text-cream-dim">
+        <SpinnerIcon className="size-5 animate-spin" /> Loading report…
+      </div>
+    );
+  }
+
+  if (!report) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+        <p className="font-sans text-sm text-cream-dim">This report couldn&apos;t be found.</p>
+        <Link href="/reports" className="font-jakarta text-sm font-medium text-gold-bright underline-offset-4 hover:underline">
+          Back to inbox
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-8 px-4 py-8 sm:px-6 lg:px-10">
@@ -105,7 +148,7 @@ export default function ReportDetailView({
 
       <PageHeader
         title={report.subject}
-        description={`${CATEGORY_LABEL[report.category]} · Submitted ${formatDisplayDate(report.submittedAt)}`}
+        description={`${report.category} · Submitted ${formatDisplayDate(report.submittedAt)}`}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge label={PRIORITY_LABEL[report.priority]} tone={PRIORITY_TONE[report.priority]} />
@@ -115,7 +158,15 @@ export default function ReportDetailView({
       />
 
       {actionMessage && (
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="border border-gold/30 bg-gold/5 p-4 font-sans text-sm text-cream-dim">
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={
+            actionFailed
+              ? "border border-[#f87171]/30 bg-[#f87171]/5 p-4 font-sans text-sm text-[#f87171]"
+              : "border border-gold/30 bg-gold/5 p-4 font-sans text-sm text-cream-dim"
+          }
+        >
           {actionMessage}
         </motion.div>
       )}
@@ -161,49 +212,27 @@ export default function ReportDetailView({
       <motion.section {...scrollReveal} className="flex flex-col gap-5 border border-grid-line bg-panel/20 p-6">
         <h2 className="font-jakarta text-lg font-semibold text-cream">Report Details</h2>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Category" value={CATEGORY_LABEL[report.category]} />
+          <Field label="Category" value={report.category} />
           <Field label="Priority" value={PRIORITY_LABEL[report.priority]} />
           <Field label="Subject" value={report.subject} />
         </div>
         <Field label="Description" value={report.description} />
 
-        {relatedListing && (
-          <div className="flex flex-col gap-1">
-            <span className="font-sans text-xs uppercase tracking-wide text-cream-dim">Related Record</span>
-            <Link
-              href={`/listings/${relatedListing.id}`}
-              className="flex w-fit items-center gap-1.5 font-jakarta text-sm font-medium text-gold-bright underline-offset-4 transition-colors hover:text-gold-light hover:underline"
-            >
-              {relatedListing.businessName} (Business Listing)
-              <ArrowRightIcon className="size-3" />
-            </Link>
-          </div>
-        )}
-        {relatedInvestment && (
-          <div className="flex flex-col gap-1">
-            <span className="font-sans text-xs uppercase tracking-wide text-cream-dim">Related Record</span>
-            <p className="font-sans text-sm text-cream-dim">
-              {formatGhs(relatedInvestment.amountInvestedGhs)} into{" "}
-              {relatedSlot ? SLOT_PACKAGE_LABEL[relatedSlot.package] : "an investment slot"}, invested{" "}
-              {formatDisplayDate(relatedInvestment.dateInvested)}.
-            </p>
-            {member && (
-              <Link
-                href={`/members/${member.id}`}
-                className="flex w-fit items-center gap-1.5 font-jakarta text-sm font-medium text-gold-bright underline-offset-4 transition-colors hover:text-gold-light hover:underline"
-              >
-                View in {member.nickname}&rsquo;s investment history
-                <ArrowRightIcon className="size-3" />
-              </Link>
-            )}
-          </div>
-        )}
+        <div className="flex flex-col gap-1">
+          <span className="font-sans text-xs uppercase tracking-wide text-cream-dim">Related Record</span>
+          <p className="font-sans text-sm text-cream-dim">{report.relatedRecordLabel ?? "Not related to a specific record"}</p>
+        </div>
       </motion.section>
 
       {report.attachment && (
         <motion.section {...scrollReveal} className="flex flex-col gap-4 border border-grid-line bg-panel/20 p-6">
           <h2 className="font-jakarta text-lg font-semibold text-cream">Attachment</h2>
-          <DocumentPreview label="Submitted Attachment" fileName={report.attachment.fileName} uploadedAt={report.attachment.uploadedAt} />
+          <DocumentPreview
+            label="Submitted Attachment"
+            fileName={report.attachment.fileName}
+            uploadedAt={report.attachment.uploadedAt}
+            url={report.attachment.url}
+          />
         </motion.section>
       )}
 
@@ -232,12 +261,14 @@ export default function ReportDetailView({
 
         <div>
           <motion.button
-            {...hoverScale}
+            {...(isSubmitting ? {} : hoverScale)}
             type="button"
             onClick={handleSave}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack"
+            disabled={isSubmitting}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Save
+            {isSubmitting && <SpinnerIcon className="size-3.5 animate-spin" />}
+            {isSubmitting ? "Saving…" : "Save"}
           </motion.button>
         </div>
       </motion.section>
