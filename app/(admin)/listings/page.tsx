@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ListingsView from "@/components/admin/listings/ListingsView";
-import { getBusinessListings, type ListingStatus } from "@/lib/businessListings";
+import type { ListingStatus } from "@/lib/businessListings";
 
 export const metadata: Metadata = {
   title: "Business Listings | AUREX Admin",
@@ -12,5 +12,5 @@ export default async function ListingsPage({ searchParams }: { searchParams: Pro
   const { status } = await searchParams;
   const initialStatus = (VALID_STATUSES as string[]).includes(status ?? "") ? (status as ListingStatus) : "all";
 
-  return <ListingsView listings={getBusinessListings()} initialStatus={initialStatus} />;
+  return <ListingsView initialStatus={initialStatus} />;
 }

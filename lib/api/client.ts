@@ -60,3 +60,18 @@ export async function apiFetchPaginated<T = unknown>(
   });
   return parse<PaginatedEnvelope<T>>(res);
 }
+
+export async function apiUpload<T = unknown>(
+  path: string,
+  formData: FormData,
+  options: { accessToken?: string | null } = {},
+): Promise<ApiEnvelope<T>> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    cache: "no-store",
+    credentials: "include",
+    headers: { ...authHeaders(options.accessToken) },
+    body: formData,
+  });
+  return parse<ApiEnvelope<T>>(res);
+}

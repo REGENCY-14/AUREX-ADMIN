@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/motion";
 import { formatGhs, formatDisplayDate } from "@/lib/formatters";
@@ -14,32 +14,38 @@ import Modal from "@/components/admin/Modal";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
 import SlotForm, { type SlotFormValues } from "@/components/admin/slots/SlotForm";
-import { PencilIcon, PlusIcon, TrashIcon, LayersIcon, SearchIcon } from "@/components/icons";
+import { PencilIcon, PlusIcon, TrashIcon, LayersIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
 import {
   SLOT_PACKAGE_LABEL,
   SLOT_STATUS_LABEL,
   canPublishSlot,
+  fetchAdminPackages,
+  createPackage,
+  updatePackage,
+  publishPackage,
+  closePackageEarly,
+  deletePackage,
   type InvestmentSlot,
+  type PackageInput,
   type SlotStatus,
-} from "@/lib/investmentSlots";
-import type { BusinessListing } from "@/lib/businessListings";
+} from "@/lib/packages";
+import { fetchApprovedBusinesses, type ApprovedBusiness } from "@/lib/businesses";
+import { ApiError } from "@/lib/api/client";
+import { useSession } from "@/lib/auth";
 
 const STATUS_TONE: Record<SlotStatus, BadgeTone> = {
-  draft: "neutral",
-  open: "gold",
+  pending: "neutral",
+  approved: "neutral",
+  rejected: "danger",
+  active: "gold",
   closed: "danger",
 };
 
-/** The two package tables share every column/action but "Business" (Core
- *  slots never have a linked listing, so that column would be a dead "—"
- *  down the whole table) — factored out once rather than duplicated per
- *  package, called below for "core" and "ventures" in turn. */
 function SlotTable({
   slots,
   packageLabel,
   hasAnyInPackage,
   hasActiveFilter,
-  listingsById,
   showBusinessColumn,
   onPublish,
   onCloseEarly,
@@ -49,18 +55,9 @@ function SlotTable({
   onClearFilter,
 }: {
   slots: InvestmentSlot[];
-  /** The package's own display name ("AUREX Core"/"AUREX Ventures"), for
-   *  this table's own empty-state copy — the two package tables can't
-   *  share one generic "no slots yet" message since which package is
-   *  empty matters to the admin reading it. */
   packageLabel: string;
-  /** Whether this package has any slots at all before the status filter
-   *  is applied — tells a genuinely-empty package (nothing created yet)
-   *  apart from one where the current status filter just hides
-   *  everything, so this table shows the right one of the two. */
   hasAnyInPackage: boolean;
   hasActiveFilter: boolean;
-  listingsById: Record<string, BusinessListing>;
   showBusinessColumn: boolean;
   onPublish: (slot: InvestmentSlot) => void;
   onCloseEarly: (slot: InvestmentSlot) => void;
@@ -71,17 +68,14 @@ function SlotTable({
 }) {
   function actionItems(slot: InvestmentSlot): ActionMenuItem[] {
     const items: ActionMenuItem[] = [];
-    if (slot.status === "draft") {
+    if (slot.status === "approved") {
       items.push({ key: "publish", label: "Publish", tone: "gold", onClick: () => onPublish(slot) });
     }
-    if (slot.status === "open") {
+    if (slot.status === "active") {
       items.push({ key: "closeEarly", label: "Close Early", tone: "danger", onClick: () => onCloseEarly(slot) });
     }
     items.push({ key: "edit", label: "Edit", icon: PencilIcon, onClick: () => onEdit(slot) });
-    // Delete only ever applies to a draft — it was never published, so
-    // there's no live investment activity riding on it yet. An open or
-    // closed slot keeps Close Early/Edit only, same as before.
-    if (slot.status === "draft") {
+    if (slot.status === "approved") {
       items.push({ key: "delete", label: "Delete", tone: "danger", icon: TrashIcon, onClick: () => onDelete(slot) });
     }
     return items;
@@ -137,87 +131,82 @@ function SlotTable({
             </tr>
           </thead>
           <tbody>
-            {slots.map((slot) => {
-              const listing = slot.businessListingId ? listingsById[slot.businessListingId] : undefined;
-              return (
-                <motion.tr
-                  key={slot.id}
-                  {...hoverLift}
-                  className={`border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
-                    slot.status === "closed" ? DANGER_ROW_CLASSNAME : ""
-                  }`}
-                >
-                  {showBusinessColumn && (
-                    <td className="px-4 py-3 font-sans text-sm text-cream-dim">{listing?.businessName ?? "—"}</td>
-                  )}
-                  <td className="px-4 py-3 font-sans text-sm text-cream-dim">
-                    {formatGhs(slot.minInvestmentGhs)} · {slot.ratePercentLabel}
-                  </td>
-                  <td className="px-4 py-3 font-sans text-sm text-cream-dim">
-                    {slot.opensAt ? formatDisplayDate(slot.opensAt) : "—"} – {slot.closesAt ? formatDisplayDate(slot.closesAt) : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusDot label={SLOT_STATUS_LABEL[slot.status]} tone={STATUS_TONE[slot.status]} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <ActionsMenu label={`${SLOT_PACKAGE_LABEL[slot.package]} slot actions`} items={actionItems(slot)} />
-                  </td>
-                </motion.tr>
-              );
-            })}
+            {slots.map((slot) => (
+              <motion.tr
+                key={slot.id}
+                {...hoverLift}
+                className={`border-b border-grid-line last:border-b-0 hover:bg-panel/30 ${
+                  slot.status === "closed" ? DANGER_ROW_CLASSNAME : ""
+                }`}
+              >
+                {showBusinessColumn && (
+                  <td className="px-4 py-3 font-sans text-sm text-cream-dim">{slot.businessName ?? "—"}</td>
+                )}
+                <td className="px-4 py-3 font-sans text-sm text-cream-dim">
+                  {formatGhs(slot.minInvestmentGhs)} · {slot.ratePercentLabel}
+                </td>
+                <td className="px-4 py-3 font-sans text-sm text-cream-dim">
+                  {slot.opensAt ? formatDisplayDate(slot.opensAt) : "—"} – {slot.closesAt ? formatDisplayDate(slot.closesAt) : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <StatusDot label={SLOT_STATUS_LABEL[slot.status]} tone={STATUS_TONE[slot.status]} />
+                </td>
+                <td className="px-4 py-3">
+                  <ActionsMenu label={`${SLOT_PACKAGE_LABEL[slot.package]} slot actions`} items={actionItems(slot)} />
+                </td>
+              </motion.tr>
+            ))}
           </tbody>
         </table>
       </motion.div>
 
       <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
-        {slots.map((slot) => {
-          const listing = slot.businessListingId ? listingsById[slot.businessListingId] : undefined;
-          return (
-            <motion.div
-              key={slot.id}
-              {...hoverLift}
-              className={`flex flex-col gap-2 border border-grid-line bg-panel/20 p-4 ${
-                slot.status === "closed" ? DANGER_ROW_CLASSNAME : ""
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <span className="font-jakarta text-sm font-semibold text-cream">
-                  {listing ? listing.businessName : SLOT_PACKAGE_LABEL[slot.package]}
-                </span>
-                <div className="flex items-center gap-2">
-                  <StatusDot label={SLOT_STATUS_LABEL[slot.status]} tone={STATUS_TONE[slot.status]} />
-                  <ActionsMenu label={`${SLOT_PACKAGE_LABEL[slot.package]} slot actions`} items={actionItems(slot)} />
-                </div>
-              </div>
-              <span className="font-sans text-xs text-cream-dim">
-                {formatGhs(slot.minInvestmentGhs)} min · {slot.ratePercentLabel} ·{" "}
-                {slot.opensAt ? formatDisplayDate(slot.opensAt) : "—"} – {slot.closesAt ? formatDisplayDate(slot.closesAt) : "—"}
+        {slots.map((slot) => (
+          <motion.div
+            key={slot.id}
+            {...hoverLift}
+            className={`flex flex-col gap-2 border border-grid-line bg-panel/20 p-4 ${
+              slot.status === "closed" ? DANGER_ROW_CLASSNAME : ""
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span className="font-jakarta text-sm font-semibold text-cream">
+                {slot.businessName ?? SLOT_PACKAGE_LABEL[slot.package]}
               </span>
-            </motion.div>
-          );
-        })}
+              <div className="flex items-center gap-2">
+                <StatusDot label={SLOT_STATUS_LABEL[slot.status]} tone={STATUS_TONE[slot.status]} />
+                <ActionsMenu label={`${SLOT_PACKAGE_LABEL[slot.package]} slot actions`} items={actionItems(slot)} />
+              </div>
+            </div>
+            <span className="font-sans text-xs text-cream-dim">
+              {formatGhs(slot.minInvestmentGhs)} min · {slot.ratePercentLabel} ·{" "}
+              {slot.opensAt ? formatDisplayDate(slot.opensAt) : "—"} – {slot.closesAt ? formatDisplayDate(slot.closesAt) : "—"}
+            </span>
+          </motion.div>
+        ))}
       </motion.div>
     </>
   );
 }
 
-function fromFormValues(values: SlotFormValues, existing?: InvestmentSlot): Omit<InvestmentSlot, "id" | "status"> {
+function fromFormValues(values: SlotFormValues): PackageInput {
   return {
-    package: values.package,
-    businessListingId: values.package === "ventures" ? values.businessListingId || undefined : undefined,
+    packageType: values.package,
+    businessId: values.package === "ventures" ? values.businessId || undefined : undefined,
+    name: `${SLOT_PACKAGE_LABEL[values.package]} — ${values.termMonths || "?"}mo @ ${values.roiRatePercent || "?"}%`,
+    roiRate: Number(values.roiRatePercent) || 0,
+    termMonths: Number(values.termMonths) || 0,
+    payoutFrequency: values.payoutFrequency,
     minInvestmentGhs: Number(values.minInvestmentGhs) || 0,
-    termLabel: values.termLabel || "—",
-    ratePercentLabel: values.ratePercentLabel || "—",
-    opensAt: values.opensAt || existing?.opensAt || "",
-    closesAt: values.closesAt || existing?.closesAt || "",
+    maxInvestmentGhs: Number(values.maxInvestmentGhs) || 0,
+    fundLimitGhs: values.package === "ventures" && values.fundLimitGhs ? Number(values.fundLimitGhs) : undefined,
+    opensAt: values.opensAt || undefined,
+    closesAt: values.closesAt || undefined,
   };
 }
 
 type SlotAction = "publish" | "closeEarly" | "delete";
 
-/** Copy for the one shared ConfirmDialog below, keyed by action — a
- *  lookup instead of a three-way ternary chain now that there are three
- *  confirmable actions instead of two. */
 const CONFIRM_COPY: Record<
   SlotAction,
   { title: string; description: (slot: InvestmentSlot) => string; confirmLabel: string; tone: "gold" | "danger" }
@@ -242,38 +231,32 @@ const CONFIRM_COPY: Record<
   },
 };
 
-/**
- * Investment Slot Management: list + a create/edit form presented as a
- * modal (rather than a separate route) so Publish/Edit/Close Early/
- * Delete and the form itself can all mutate one local `slots` array
- * directly — no cross-route state-sharing problem to solve for a mock/
- * no-backend tool. See ApplicationDetailView's own comment for why
- * Applications/Members instead use full detail *pages*: those need room
- * for documents/history a modal can't comfortably hold, this genuinely
- * is just a form.
- *
- * Delete is draft-only (see SlotTable's own actionItems) — a published
- * slot may already have real investment activity riding on it, so
- * Close Early is the only way out of `open`; a draft was never
- * published, so there's nothing downstream to protect.
- */
-export default function SlotsView({
-  slots: initialSlots,
-  listingsById,
-  approvedListings,
-  initialStatus = "all",
-}: {
-  slots: InvestmentSlot[];
-  listingsById: Record<string, BusinessListing>;
-  approvedListings: BusinessListing[];
-  initialStatus?: SlotStatus | "all";
-}) {
-  const [slots, setSlots] = useState(initialSlots);
+export default function SlotsView({ initialStatus = "all" }: { initialStatus?: SlotStatus | "all" }) {
+  const { session } = useSession();
+  const [slots, setSlots] = useState<InvestmentSlot[]>([]);
+  const [approvedBusinesses, setApprovedBusinesses] = useState<ApprovedBusiness[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<SlotStatus | "all">(initialStatus);
   const [modalSlot, setModalSlot] = useState<InvestmentSlot | "new" | null>(null);
   const [publishError, setPublishError] = useState<string | undefined>(undefined);
   const [banner, setBanner] = useState<string | null>(null);
   const [confirmSlotAction, setConfirmSlotAction] = useState<{ type: SlotAction; slot: InvestmentSlot } | null>(null);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    Promise.all([fetchAdminPackages(), fetchApprovedBusinesses()]).then(([packageRows, businessRows]) => {
+      if (cancelled) return;
+      setSlots(packageRows);
+      setApprovedBusinesses(businessRows);
+      setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const filtered = useMemo(
     () => slots.filter((s) => statusFilter === "all" || s.status === statusFilter),
@@ -291,53 +274,76 @@ export default function SlotsView({
     setPublishError(undefined);
   }
 
-  function handleSaveDraft(values: SlotFormValues) {
-    if (modalSlot === "new") {
-      const id = `slot-${Math.random().toString(36).slice(2, 8)}`;
-      setSlots((prev) => [...prev, { id, status: "draft", ...fromFormValues(values) }]);
-      setBanner("Slot saved as a draft.");
-    } else if (modalSlot) {
-      const id = modalSlot.id;
-      setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...fromFormValues(values, s) } : s)));
-      setBanner("Slot updated and kept as a draft.");
-    }
-    closeModal();
+  function replaceOrAppend(slot: InvestmentSlot) {
+    setSlots((prev) => (prev.some((s) => s.id === slot.id) ? prev.map((s) => (s.id === slot.id ? slot : s)) : [...prev, slot]));
   }
 
-  function handlePublishFromForm(values: SlotFormValues) {
-    const draft = fromFormValues(values, modalSlot !== "new" ? modalSlot ?? undefined : undefined);
-    if (!canPublishSlot(draft)) {
-      setPublishError("Cannot publish: a Ventures slot must be linked to an approved business listing.");
+  async function handleSaveDraft(values: SlotFormValues) {
+    try {
+      if (modalSlot === "new") {
+        const created = await createPackage(fromFormValues(values));
+        replaceOrAppend(created);
+        setBanner("Slot saved as a draft.");
+      } else if (modalSlot) {
+        const updated = await updatePackage(modalSlot.id, fromFormValues(values));
+        replaceOrAppend(updated);
+        setBanner("Slot updated and kept as a draft.");
+      }
+      closeModal();
+    } catch (err) {
+      setPublishError(err instanceof ApiError ? err.message : "Failed to save slot.");
+    }
+  }
+
+  async function handlePublishFromForm(values: SlotFormValues) {
+    const draft = fromFormValues(values);
+    if (!canPublishSlot({ package: draft.packageType, businessId: draft.businessId, businessStatus: approvedBusinesses.some((b) => b.id === draft.businessId) ? "approved" : undefined })) {
+      setPublishError("Cannot publish: a Ventures slot must be linked to an approved business.");
       return;
     }
-    if (modalSlot === "new") {
-      const id = `slot-${Math.random().toString(36).slice(2, 8)}`;
-      setSlots((prev) => [...prev, { id, status: "open", ...draft }]);
-    } else if (modalSlot) {
-      const id = modalSlot.id;
-      setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...draft, status: "open" } : s)));
+    try {
+      const saved = modalSlot === "new" ? await createPackage(draft) : await updatePackage(modalSlot!.id, draft);
+      const published = await publishPackage(saved.id);
+      replaceOrAppend(published);
+      setBanner("Slot published, now open for investment.");
+      closeModal();
+    } catch (err) {
+      setPublishError(err instanceof ApiError ? err.message : "Failed to publish slot.");
     }
-    setBanner("Slot published, now open for investment.");
-    closeModal();
   }
 
-  function handlePublishFromList(slot: InvestmentSlot) {
+  async function handlePublishFromList(slot: InvestmentSlot) {
     if (!canPublishSlot(slot)) {
-      setBanner(`Cannot publish “${SLOT_PACKAGE_LABEL[slot.package]}”: it needs a linked, approved business listing first.`);
+      setBanner(`Cannot publish “${SLOT_PACKAGE_LABEL[slot.package]}”: it needs a linked, approved business first.`);
       return;
     }
-    setSlots((prev) => prev.map((s) => (s.id === slot.id ? { ...s, status: "open" } : s)));
-    setBanner("Slot published, now open for investment.");
+    try {
+      const published = await publishPackage(slot.id);
+      replaceOrAppend(published);
+      setBanner("Slot published, now open for investment.");
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "Failed to publish slot.");
+    }
   }
 
-  function handleCloseEarly(slot: InvestmentSlot) {
-    setSlots((prev) => prev.map((s) => (s.id === slot.id ? { ...s, status: "closed" } : s)));
-    setBanner(`“${SLOT_PACKAGE_LABEL[slot.package]}” slot closed early.`);
+  async function handleCloseEarly(slot: InvestmentSlot) {
+    try {
+      const closed = await closePackageEarly(slot.id);
+      replaceOrAppend(closed);
+      setBanner(`“${SLOT_PACKAGE_LABEL[slot.package]}” slot closed early.`);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "Failed to close slot.");
+    }
   }
 
-  function handleDeleteSlot(slot: InvestmentSlot) {
-    setSlots((prev) => prev.filter((s) => s.id !== slot.id));
-    setBanner(`“${SLOT_PACKAGE_LABEL[slot.package]}” draft deleted.`);
+  async function handleDeleteSlot(slot: InvestmentSlot) {
+    try {
+      await deletePackage(slot.id);
+      setSlots((prev) => prev.filter((s) => s.id !== slot.id));
+      setBanner(`“${SLOT_PACKAGE_LABEL[slot.package]}” draft deleted.`);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "Failed to delete slot.");
+    }
   }
 
   return (
@@ -368,69 +374,78 @@ export default function SlotsView({
         </motion.div>
       )}
 
-      <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
-        <Select
-          value={statusFilter}
-          onChange={(v) => setStatusFilter(v as SlotStatus | "all")}
-          options={[
-            { value: "all", label: "All Statuses" },
-            { value: "draft", label: "Draft" },
-            { value: "open", label: "Open" },
-            { value: "closed", label: "Closed" },
-          ]}
-          ariaLabel="Filter by status"
-        />
-        <span className="font-sans text-xs text-cream-dim">
-          {filtered.length} of {slots.length}
-        </span>
-      </motion.div>
+      {isLoading ? (
+        <motion.div
+          variants={staggerItem}
+          className="flex items-center justify-center gap-2 border border-grid-line bg-panel/20 p-8 font-sans text-sm text-cream-dim"
+        >
+          <SpinnerIcon className="size-4 animate-spin" /> Loading slots…
+        </motion.div>
+      ) : (
+        <>
+          <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
+            <Select
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as SlotStatus | "all")}
+              options={[
+                { value: "all", label: "All Statuses" },
+                { value: "approved", label: "Draft" },
+                { value: "active", label: "Open" },
+                { value: "closed", label: "Closed" },
+              ]}
+              ariaLabel="Filter by status"
+            />
+            <span className="font-sans text-xs text-cream-dim">
+              {filtered.length} of {slots.length}
+            </span>
+          </motion.div>
 
-      <motion.div variants={staggerItem} className="flex flex-col gap-3">
-        <h2 className="font-jakarta text-base font-semibold text-cream">AUREX Core</h2>
-        <SlotTable
-          slots={coreSlots}
-          packageLabel="AUREX Core"
-          hasAnyInPackage={hasAnyCoreSlots}
-          hasActiveFilter={hasActiveFilter}
-          listingsById={listingsById}
-          showBusinessColumn={false}
-          onPublish={(slot) => setConfirmSlotAction({ type: "publish", slot })}
-          onCloseEarly={(slot) => setConfirmSlotAction({ type: "closeEarly", slot })}
-          onEdit={(slot) => setModalSlot(slot)}
-          onDelete={(slot) => setConfirmSlotAction({ type: "delete", slot })}
-          onCreateNew={() => setModalSlot("new")}
-          onClearFilter={() => setStatusFilter("all")}
-        />
-      </motion.div>
+          <motion.div variants={staggerItem} className="flex flex-col gap-3">
+            <h2 className="font-jakarta text-base font-semibold text-cream">AUREX Core</h2>
+            <SlotTable
+              slots={coreSlots}
+              packageLabel="AUREX Core"
+              hasAnyInPackage={hasAnyCoreSlots}
+              hasActiveFilter={hasActiveFilter}
+              showBusinessColumn={false}
+              onPublish={(slot) => setConfirmSlotAction({ type: "publish", slot })}
+              onCloseEarly={(slot) => setConfirmSlotAction({ type: "closeEarly", slot })}
+              onEdit={(slot) => setModalSlot(slot)}
+              onDelete={(slot) => setConfirmSlotAction({ type: "delete", slot })}
+              onCreateNew={() => setModalSlot("new")}
+              onClearFilter={() => setStatusFilter("all")}
+            />
+          </motion.div>
 
-      <motion.div variants={staggerItem} className="flex flex-col gap-3">
-        <h2 className="font-jakarta text-base font-semibold text-cream">AUREX Ventures</h2>
-        <SlotTable
-          slots={venturesSlots}
-          packageLabel="AUREX Ventures"
-          hasAnyInPackage={hasAnyVenturesSlots}
-          hasActiveFilter={hasActiveFilter}
-          listingsById={listingsById}
-          showBusinessColumn={true}
-          onPublish={(slot) => setConfirmSlotAction({ type: "publish", slot })}
-          onCloseEarly={(slot) => setConfirmSlotAction({ type: "closeEarly", slot })}
-          onEdit={(slot) => setModalSlot(slot)}
-          onDelete={(slot) => setConfirmSlotAction({ type: "delete", slot })}
-          onCreateNew={() => setModalSlot("new")}
-          onClearFilter={() => setStatusFilter("all")}
-        />
-      </motion.div>
+          <motion.div variants={staggerItem} className="flex flex-col gap-3">
+            <h2 className="font-jakarta text-base font-semibold text-cream">AUREX Ventures</h2>
+            <SlotTable
+              slots={venturesSlots}
+              packageLabel="AUREX Ventures"
+              hasAnyInPackage={hasAnyVenturesSlots}
+              hasActiveFilter={hasActiveFilter}
+              showBusinessColumn={true}
+              onPublish={(slot) => setConfirmSlotAction({ type: "publish", slot })}
+              onCloseEarly={(slot) => setConfirmSlotAction({ type: "closeEarly", slot })}
+              onEdit={(slot) => setModalSlot(slot)}
+              onDelete={(slot) => setConfirmSlotAction({ type: "delete", slot })}
+              onCreateNew={() => setModalSlot("new")}
+              onClearFilter={() => setStatusFilter("all")}
+            />
+          </motion.div>
+        </>
+      )}
 
       <Modal
         isOpen={modalSlot !== null}
         onClose={closeModal}
         title={modalSlot === "new" ? "Create Investment Slot" : "Edit Investment Slot"}
-        description="Ventures slots must link to an approved business listing before they can be published."
+        description="Ventures slots must link to an approved business before they can be published."
       >
         <SlotForm
           key={modalSlot === "new" ? "new" : modalSlot?.id}
           slot={modalSlot && modalSlot !== "new" ? modalSlot : undefined}
-          approvedListings={approvedListings}
+          approvedBusinesses={approvedBusinesses}
           onCancel={closeModal}
           onSaveDraft={handleSaveDraft}
           onPublish={handlePublishFromForm}

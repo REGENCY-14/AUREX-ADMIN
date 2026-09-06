@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Select from "@/components/admin/Select";
-import type { BusinessListing, ListingStatus } from "@/lib/businessListings";
-import { LISTING_STATUS_LABEL } from "@/lib/businessListings";
+import { formatGhs } from "@/lib/formatters";
+import { LISTING_STATUS_LABEL, getFundingPercent, type BusinessListing } from "@/lib/businessListings";
 
 const INPUT_CLASSNAME =
   "w-full border border-grid-line bg-panel/60 px-3 py-2 font-sans text-sm text-cream placeholder:text-cream-dim/50 focus:border-gold/50 focus:outline-none";
@@ -12,18 +11,9 @@ const LABEL_TEXT_CLASSNAME = "font-sans text-xs uppercase tracking-wide text-cre
 
 export type ListingFormValues = {
   description: string;
-  fundingGoalGhs: string;
-  status: ListingStatus;
+  fundingPurpose: string;
 };
 
-/**
- * The Business Listing edit form — description, funding goal, and status
- * only, per the brief ("only Admin edits this, never the business
- * owner"). Business name/owner/funding purpose/backer count/raised
- * amount aren't editable here on purpose — raised/backers are derived
- * from real investment activity once that exists, not something Admin
- * hand-types on a listing.
- */
 export default function ListingForm({
   listing,
   onCancel,
@@ -35,8 +25,7 @@ export default function ListingForm({
 }) {
   const [values, setValues] = useState<ListingFormValues>({
     description: listing.description,
-    fundingGoalGhs: String(listing.fundingGoalGhs),
-    status: listing.status,
+    fundingPurpose: listing.fundingPurpose,
   });
 
   function set<K extends keyof ListingFormValues>(key: K, value: ListingFormValues[K]) {
@@ -51,6 +40,17 @@ export default function ListingForm({
         onSave(values);
       }}
     >
+      <div className="flex flex-wrap items-center gap-3 border border-grid-line bg-panel/40 px-3 py-2 font-sans text-xs text-cream-dim">
+        <span>Status: {LISTING_STATUS_LABEL[listing.status]}</span>
+        <span>
+          Goal: {formatGhs(listing.fundingGoalGhs)} · Raised: {formatGhs(listing.amountRaisedGhs)} (
+          {getFundingPercent(listing)}%)
+        </span>
+      </div>
+      <p className="font-sans text-xs text-cream-dim">
+        Status and funding goal come from the linked Ventures package — edit those on the Slots page.
+      </p>
+
       <label className={LABEL_CLASSNAME}>
         <span className={LABEL_TEXT_CLASSNAME}>Description</span>
         <textarea
@@ -62,25 +62,12 @@ export default function ListingForm({
       </label>
 
       <label className={LABEL_CLASSNAME}>
-        <span className={LABEL_TEXT_CLASSNAME}>Funding Goal (GHS)</span>
-        <input
-          type="number"
-          min={0}
-          value={values.fundingGoalGhs}
-          onChange={(e) => set("fundingGoalGhs", e.target.value)}
+        <span className={LABEL_TEXT_CLASSNAME}>Funding Purpose</span>
+        <textarea
+          value={values.fundingPurpose}
+          onChange={(e) => set("fundingPurpose", e.target.value)}
+          rows={2}
           className={INPUT_CLASSNAME}
-        />
-      </label>
-
-      <label className={LABEL_CLASSNAME}>
-        <span className={LABEL_TEXT_CLASSNAME}>Status</span>
-        <Select
-          value={values.status}
-          onChange={(v) => set("status", v as ListingStatus)}
-          options={(Object.keys(LISTING_STATUS_LABEL) as ListingStatus[]).map((status) => ({
-            value: status,
-            label: LISTING_STATUS_LABEL[status],
-          }))}
         />
       </label>
 

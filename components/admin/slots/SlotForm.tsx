@@ -3,20 +3,29 @@
 import { useState } from "react";
 import Select from "@/components/admin/Select";
 import DatePicker from "@/components/admin/DatePicker";
-import type { BusinessListing } from "@/lib/businessListings";
-import type { InvestmentSlot, SlotPackage } from "@/lib/investmentSlots";
+import type { ApprovedBusiness } from "@/lib/businesses";
+import type { InvestmentSlot, PayoutFrequency, SlotPackage } from "@/lib/packages";
 
 const INPUT_CLASSNAME =
   "w-full border border-grid-line bg-panel/60 px-3 py-2 font-sans text-sm text-cream placeholder:text-cream-dim/50 focus:border-gold/50 focus:outline-none";
 const LABEL_CLASSNAME = "flex flex-col gap-1.5";
 const LABEL_TEXT_CLASSNAME = "font-sans text-xs uppercase tracking-wide text-cream-dim";
 
+const PAYOUT_FREQUENCY_OPTIONS: { value: PayoutFrequency; label: string }[] = [
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "at_maturity", label: "At Maturity" },
+];
+
 export type SlotFormValues = {
   package: SlotPackage;
-  businessListingId: string;
+  businessId: string;
   minInvestmentGhs: string;
-  termLabel: string;
-  ratePercentLabel: string;
+  maxInvestmentGhs: string;
+  fundLimitGhs: string;
+  roiRatePercent: string;
+  termMonths: string;
+  payoutFrequency: PayoutFrequency;
   opensAt: string;
   closesAt: string;
 };
@@ -24,35 +33,28 @@ export type SlotFormValues = {
 function toFormValues(slot?: InvestmentSlot): SlotFormValues {
   return {
     package: slot?.package ?? "core",
-    businessListingId: slot?.businessListingId ?? "",
+    businessId: slot?.businessId ?? "",
     minInvestmentGhs: slot ? String(slot.minInvestmentGhs) : "",
-    termLabel: slot?.termLabel ?? "",
-    ratePercentLabel: slot?.ratePercentLabel ?? "",
+    maxInvestmentGhs: slot ? String(slot.maxInvestmentGhs) : "",
+    fundLimitGhs: slot?.fundLimitGhs !== undefined ? String(slot.fundLimitGhs) : "",
+    roiRatePercent: slot ? String(slot.roiRate) : "",
+    termMonths: slot ? String(slot.termMonths) : "",
+    payoutFrequency: slot?.payoutFrequency ?? "monthly",
     opensAt: slot?.opensAt ?? "",
     closesAt: slot?.closesAt ?? "",
   };
 }
 
-/**
- * The Investment Slot create/edit form — shared by both, since editing a
- * draft/open slot is the same field set as creating one. Rendered inside
- * components/admin/Modal.tsx by SlotsView.
- *
- * The business selector only appears (and is required to publish) for a
- * Ventures slot — `approvedListings` is already filtered to "past
- * pending" by the caller (see lib/businessListings.ts's own
- * getApprovedListings), per the brief's own validation rule.
- */
 export default function SlotForm({
   slot,
-  approvedListings,
+  approvedBusinesses,
   onCancel,
   onSaveDraft,
   onPublish,
   publishError,
 }: {
   slot?: InvestmentSlot;
-  approvedListings: BusinessListing[];
+  approvedBusinesses: ApprovedBusiness[];
   onCancel: () => void;
   onSaveDraft: (values: SlotFormValues) => void;
   onPublish: (values: SlotFormValues) => void;
@@ -80,14 +82,28 @@ export default function SlotForm({
 
       {values.package === "ventures" && (
         <label className={LABEL_CLASSNAME}>
-          <span className={LABEL_TEXT_CLASSNAME}>Linked Business (approved listings only)</span>
+          <span className={LABEL_TEXT_CLASSNAME}>Linked Business (approved businesses only)</span>
           <Select
-            value={values.businessListingId}
-            onChange={(v) => set("businessListingId", v)}
+            value={values.businessId}
+            onChange={(v) => set("businessId", v)}
             options={[
               { value: "", label: "Select a business" },
-              ...approvedListings.map((listing) => ({ value: listing.id, label: listing.businessName })),
+              ...approvedBusinesses.map((business) => ({ value: business.id, label: business.name })),
             ]}
+          />
+        </label>
+      )}
+
+      {values.package === "ventures" && (
+        <label className={LABEL_CLASSNAME}>
+          <span className={LABEL_TEXT_CLASSNAME}>Funding Goal (GHS) — shown on the business&apos;s public listing</span>
+          <input
+            type="number"
+            min={0}
+            value={values.fundLimitGhs}
+            onChange={(e) => set("fundLimitGhs", e.target.value)}
+            placeholder="e.g. 50000"
+            className={INPUT_CLASSNAME}
           />
         </label>
       )}
@@ -105,25 +121,50 @@ export default function SlotForm({
           />
         </label>
         <label className={LABEL_CLASSNAME}>
-          <span className={LABEL_TEXT_CLASSNAME}>Interest Rate</span>
+          <span className={LABEL_TEXT_CLASSNAME}>Maximum Investment (GHS)</span>
           <input
-            type="text"
-            value={values.ratePercentLabel}
-            onChange={(e) => set("ratePercentLabel", e.target.value)}
-            placeholder="e.g. 14% p.a."
+            type="number"
+            min={0}
+            value={values.maxInvestmentGhs}
+            onChange={(e) => set("maxInvestmentGhs", e.target.value)}
+            placeholder="e.g. 50000"
+            className={INPUT_CLASSNAME}
+          />
+        </label>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label className={LABEL_CLASSNAME}>
+          <span className={LABEL_TEXT_CLASSNAME}>Interest Rate (% p.a.)</span>
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            value={values.roiRatePercent}
+            onChange={(e) => set("roiRatePercent", e.target.value)}
+            placeholder="e.g. 14"
+            className={INPUT_CLASSNAME}
+          />
+        </label>
+        <label className={LABEL_CLASSNAME}>
+          <span className={LABEL_TEXT_CLASSNAME}>Term (months)</span>
+          <input
+            type="number"
+            min={1}
+            value={values.termMonths}
+            onChange={(e) => set("termMonths", e.target.value)}
+            placeholder="e.g. 12"
             className={INPUT_CLASSNAME}
           />
         </label>
       </div>
 
       <label className={LABEL_CLASSNAME}>
-        <span className={LABEL_TEXT_CLASSNAME}>Term</span>
-        <input
-          type="text"
-          value={values.termLabel}
-          onChange={(e) => set("termLabel", e.target.value)}
-          placeholder="e.g. 12-month term"
-          className={INPUT_CLASSNAME}
+        <span className={LABEL_TEXT_CLASSNAME}>Payout Frequency</span>
+        <Select
+          value={values.payoutFrequency}
+          onChange={(v) => set("payoutFrequency", v as PayoutFrequency)}
+          options={PAYOUT_FREQUENCY_OPTIONS}
         />
       </label>
 

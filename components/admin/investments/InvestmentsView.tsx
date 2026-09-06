@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/motion";
 import { formatGhs, formatDisplayDate } from "@/lib/formatters";
@@ -8,51 +8,62 @@ import PageHeader from "@/components/admin/PageHeader";
 import Modal from "@/components/admin/Modal";
 import EmptyState from "@/components/admin/EmptyState";
 import InvestmentForm, { type InvestmentFormValues } from "@/components/admin/investments/InvestmentForm";
-import { CoinsIcon } from "@/components/icons";
-import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
-import type { Member } from "@/lib/members";
-import type { InvestmentRecord } from "@/lib/investments";
+import { CoinsIcon, SpinnerIcon } from "@/components/icons";
+import { SLOT_PACKAGE_LABEL, fetchAdminPackages, type InvestmentSlot } from "@/lib/packages";
+import { fetchMembers, type Member } from "@/lib/members";
+import { fetchInvestments, recordInvestment, updateEarnings, type InvestmentRecord } from "@/lib/investments";
+import { ApiError } from "@/lib/api/client";
+import { useSession } from "@/lib/auth";
 
-/**
- * The Investment Recording Tool: a form (creates a new record — a top-up
- * is always a new record, never an edit, per the brief) plus the table of
- * existing records with a separate "Update Earnings" action per row. One
- * page, local state — no cross-route persistence problem to solve here.
- */
-export default function InvestmentsView({
-  records: initialRecords,
-  investors,
-  openSlots,
-  membersById,
-  slotsById,
-}: {
-  records: InvestmentRecord[];
-  investors: Member[];
-  openSlots: InvestmentSlot[];
-  membersById: Record<string, Member>;
-  slotsById: Record<string, InvestmentSlot>;
-}) {
-  const [records, setRecords] = useState(initialRecords);
+export default function InvestmentsView() {
+  const { session } = useSession();
+  const [records, setRecords] = useState<InvestmentRecord[]>([]);
+  const [investors, setInvestors] = useState<Member[]>([]);
+  const [openSlots, setOpenSlots] = useState<InvestmentSlot[]>([]);
+  const [membersById, setMembersById] = useState<Record<string, Member>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [banner, setBanner] = useState<string | null>(null);
   const [editingEarnings, setEditingEarnings] = useState<InvestmentRecord | null>(null);
   const [earningsInput, setEarningsInput] = useState("");
 
-  function handleRecord(values: InvestmentFormValues) {
-    const member = membersById[values.memberId];
-    const id = `inv-${Math.random().toString(36).slice(2, 8)}`;
-    const record: InvestmentRecord = {
-      id,
-      memberId: values.memberId,
-      slotId: values.slotId,
-      amountInvestedGhs: Number(values.amountInvestedGhs) || 0,
-      dateInvested: values.dateInvested,
-      proofOfPaymentFileName: values.proofOfPaymentFileName,
-      notes: values.notes || undefined,
-      earningsToDateGhs: 0,
-      lastEarningsUpdate: values.dateInvested,
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    Promise.all([fetchInvestments(), fetchMembers({ track: "investor" }), fetchAdminPackages()]).then(
+      ([investmentRows, memberRows, packageRows]) => {
+        if (cancelled) return;
+        setRecords(investmentRows);
+        setInvestors(memberRows.filter((m) => m.status === "active"));
+        setOpenSlots(packageRows.filter((s) => s.status === "active"));
+        setMembersById(memberRows.reduce<Record<string, Member>>((acc, m) => ({ ...acc, [m.id]: m }), {}));
+        setIsLoading(false);
+      },
+    );
+    return () => {
+      cancelled = true;
     };
-    setRecords((prev) => [record, ...prev]);
-    setBanner(`Recorded ${formatGhs(record.amountInvestedGhs)} for ${member?.nickname ?? "member"}.`);
+  }, [session]);
+
+  async function handleRecord(values: InvestmentFormValues) {
+    if (!values.method) return;
+    try {
+      const record = await recordInvestment({
+        memberId: values.memberId,
+        packageId: values.packageId,
+        amountInvestedGhs: Number(values.amountInvestedGhs) || 0,
+        dateInvested: values.dateInvested,
+        method: values.method,
+        reference: values.reference || undefined,
+        notes: values.notes || undefined,
+        proofOfPayment: values.proofOfPayment,
+      });
+      setRecords((prev) => [record, ...prev]);
+      setBanner(`Recorded ${formatGhs(record.amountInvestedGhs)} for ${membersById[values.memberId]?.nickname ?? "member"}.`);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "Failed to record investment.");
+    }
   }
 
   function openEarningsModal(record: InvestmentRecord) {
@@ -60,18 +71,17 @@ export default function InvestmentsView({
     setEarningsInput(String(record.earningsToDateGhs));
   }
 
-  function handleSaveEarnings() {
+  async function handleSaveEarnings() {
     if (!editingEarnings) return;
-    const value = Number(earningsInput) || 0;
-    setRecords((prev) =>
-      prev.map((r) =>
-        r.id === editingEarnings.id
-          ? { ...r, earningsToDateGhs: value, lastEarningsUpdate: new Date().toISOString().slice(0, 10) }
-          : r
-      )
-    );
-    setBanner(`Earnings to date updated for ${membersById[editingEarnings.memberId]?.nickname ?? "member"}.`);
-    setEditingEarnings(null);
+    const earnings = Number(earningsInput) || 0;
+    try {
+      const updated = await updateEarnings(editingEarnings.id, editingEarnings.amountInvestedGhs + earnings);
+      setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setBanner(`Earnings to date updated for ${membersById[editingEarnings.memberId]?.nickname ?? "member"}.`);
+      setEditingEarnings(null);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "Failed to update earnings.");
+    }
   }
 
   return (
@@ -89,87 +99,98 @@ export default function InvestmentsView({
         </motion.div>
       )}
 
-      <motion.div variants={staggerItem}>
-        <InvestmentForm investors={investors} openSlots={openSlots} onSubmit={handleRecord} />
-      </motion.div>
+      {isLoading ? (
+        <motion.div
+          variants={staggerItem}
+          className="flex items-center justify-center gap-2 border border-grid-line bg-panel/20 p-8 font-sans text-sm text-cream-dim"
+        >
+          <SpinnerIcon className="size-4 animate-spin" /> Loading investments…
+        </motion.div>
+      ) : (
+        <>
+          <motion.div variants={staggerItem}>
+            <InvestmentForm investors={investors} openSlots={openSlots} onSubmit={handleRecord} />
+          </motion.div>
 
-      <motion.div variants={staggerItem} className="flex flex-col gap-3">
-        <h2 className="font-jakarta text-lg font-semibold text-cream">All Investment Records</h2>
+          <motion.div variants={staggerItem} className="flex flex-col gap-3">
+            <h2 className="font-jakarta text-lg font-semibold text-cream">All Investment Records</h2>
 
-        {records.length === 0 ? (
-          <EmptyState
-            icon={CoinsIcon}
-            title="No investments recorded yet"
-            description="Use the form above to record a member's first investment. It'll show up here right away."
-          />
-        ) : (
-          <>
-            <div className="hidden overflow-x-auto border border-grid-line lg:block">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-grid-line bg-panel/40">
-                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Member</th>
-                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Slot</th>
-                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Amount</th>
-                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Date</th>
-                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Earnings to Date</th>
-                    <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Update</th>
-                  </tr>
-                </thead>
-                <tbody>
+            {records.length === 0 ? (
+              <EmptyState
+                icon={CoinsIcon}
+                title="No investments recorded yet"
+                description="Use the form above to record a member's first investment. It'll show up here right away."
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto border border-grid-line lg:block">
+                  <table className="w-full border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-grid-line bg-panel/40">
+                        <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Member</th>
+                        <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Slot</th>
+                        <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Amount</th>
+                        <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Date</th>
+                        <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Earnings to Date</th>
+                        <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Update</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {records.map((record) => (
+                        <motion.tr key={record.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
+                          <td className="px-4 py-3 font-jakarta text-sm font-medium text-cream">{membersById[record.memberId]?.nickname ?? "—"}</td>
+                          <td className="px-4 py-3 font-sans text-sm text-cream-dim">
+                            {record.businessName ?? SLOT_PACKAGE_LABEL[record.slotPackage]}
+                          </td>
+                          <td className="px-4 py-3 font-jakarta text-sm font-semibold text-gold-bright">{formatGhs(record.amountInvestedGhs)}</td>
+                          <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatDisplayDate(record.dateInvested)}</td>
+                          <td className="px-4 py-3 font-sans text-sm text-cream-dim">
+                            {formatGhs(record.earningsToDateGhs)}{" "}
+                            <span className="text-xs">(as of {formatDisplayDate(record.lastEarningsUpdate)})</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => openEarningsModal(record)}
+                              className="border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
+                            >
+                              Update Earnings
+                            </button>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex flex-col gap-3 lg:hidden">
                   {records.map((record) => (
-                    <motion.tr key={record.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
-                      <td className="px-4 py-3 font-jakarta text-sm font-medium text-cream">{membersById[record.memberId]?.nickname ?? "—"}</td>
-                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">
-                        {slotsById[record.slotId] ? SLOT_PACKAGE_LABEL[slotsById[record.slotId].package] : "—"}
-                      </td>
-                      <td className="px-4 py-3 font-jakarta text-sm font-semibold text-gold-bright">{formatGhs(record.amountInvestedGhs)}</td>
-                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">{formatDisplayDate(record.dateInvested)}</td>
-                      <td className="px-4 py-3 font-sans text-sm text-cream-dim">
-                        {formatGhs(record.earningsToDateGhs)}{" "}
-                        <span className="text-xs">(as of {formatDisplayDate(record.lastEarningsUpdate)})</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => openEarningsModal(record)}
-                          className="border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim transition-colors hover:text-cream"
-                        >
-                          Update Earnings
-                        </button>
-                      </td>
-                    </motion.tr>
+                    <motion.div key={record.id} {...hoverLift} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="font-jakarta text-sm font-semibold text-cream">{membersById[record.memberId]?.nickname ?? "—"}</span>
+                        <span className="font-jakarta text-sm font-semibold text-gold-bright">{formatGhs(record.amountInvestedGhs)}</span>
+                      </div>
+                      <span className="font-sans text-sm text-cream-dim">
+                        {record.businessName ?? SLOT_PACKAGE_LABEL[record.slotPackage]} · {formatDisplayDate(record.dateInvested)}
+                      </span>
+                      <span className="font-sans text-xs text-cream-dim">
+                        Earnings to date: {formatGhs(record.earningsToDateGhs)} (as of {formatDisplayDate(record.lastEarningsUpdate)})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => openEarningsModal(record)}
+                        className="mt-1 w-fit border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim"
+                      >
+                        Update Earnings
+                      </button>
+                    </motion.div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex flex-col gap-3 lg:hidden">
-              {records.map((record) => (
-                <motion.div key={record.id} {...hoverLift} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="font-jakarta text-sm font-semibold text-cream">{membersById[record.memberId]?.nickname ?? "—"}</span>
-                    <span className="font-jakarta text-sm font-semibold text-gold-bright">{formatGhs(record.amountInvestedGhs)}</span>
-                  </div>
-                  <span className="font-sans text-sm text-cream-dim">
-                    {slotsById[record.slotId] ? SLOT_PACKAGE_LABEL[slotsById[record.slotId].package] : "—"} · {formatDisplayDate(record.dateInvested)}
-                  </span>
-                  <span className="font-sans text-xs text-cream-dim">
-                    Earnings to date: {formatGhs(record.earningsToDateGhs)} (as of {formatDisplayDate(record.lastEarningsUpdate)})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => openEarningsModal(record)}
-                    className="mt-1 w-fit border border-grid-line px-2.5 py-1 font-jakarta text-xs font-medium text-cream-dim"
-                  >
-                    Update Earnings
-                  </button>
-                </motion.div>
-              ))}
-            </div>
-          </>
-        )}
-      </motion.div>
+                </div>
+              </>
+            )}
+          </motion.div>
+        </>
+      )}
 
       <Modal
         isOpen={editingEarnings !== null}

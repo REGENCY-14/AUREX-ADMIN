@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { scrollReveal, hoverScale } from "@/lib/motion";
@@ -11,10 +11,10 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { ArrowRightIcon, SpinnerIcon } from "@/components/icons";
 import { useSession } from "@/lib/auth";
 import { fetchMemberById, type Member, type MemberStatus } from "@/lib/members";
-import { getInvestmentRecordsByMember, type InvestmentRecord } from "@/lib/investments";
-import { getInvestmentSlots, SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
+import { fetchInvestments, type InvestmentRecord } from "@/lib/investments";
+import { SLOT_PACKAGE_LABEL } from "@/lib/packages";
 import {
-  getBusinessListingById,
+  fetchBusinessListings,
   LISTING_STATUS_LABEL,
   getFundingPercent,
   type BusinessListing,
@@ -38,14 +38,15 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function slotLabel(slot: InvestmentSlot | undefined) {
-  if (!slot) return "Unknown slot";
-  return SLOT_PACKAGE_LABEL[slot.package];
+function slotLabel(record: InvestmentRecord) {
+  return record.businessName ?? SLOT_PACKAGE_LABEL[record.slotPackage];
 }
 
 export default function MemberDetailView({ id }: { id: string }) {
   const { session } = useSession();
   const [member, setMember] = useState<Member | null>(null);
+  const [investmentRecords, setInvestmentRecords] = useState<InvestmentRecord[]>([]);
+  const [listing, setListing] = useState<BusinessListing | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<MemberStatus>("active");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -61,24 +62,20 @@ export default function MemberDetailView({ id }: { id: string }) {
       setMember(result ?? null);
       setStatus(result?.status ?? "active");
       setIsLoading(false);
+      if (result?.track === "investor") {
+        fetchInvestments({ memberId: result.id }).then((records) => {
+          if (!cancelled) setInvestmentRecords(records);
+        });
+      } else if (result?.track === "business") {
+        fetchBusinessListings().then((listings) => {
+          if (!cancelled) setListing(listings.find((l) => l.ownerNickname === result.nickname));
+        });
+      }
     });
     return () => {
       cancelled = true;
     };
   }, [session, id]);
-
-  const investmentRecords: InvestmentRecord[] = member ? getInvestmentRecordsByMember(member.id) : [];
-  const slotsById = useMemo(
-    () =>
-      getInvestmentSlots().reduce<Record<string, InvestmentSlot>>((acc, slot) => {
-        acc[slot.id] = slot;
-        return acc;
-      }, {}),
-    [],
-  );
-  const listing: BusinessListing | undefined = member?.businessListingId
-    ? getBusinessListingById(member.businessListingId)
-    : undefined;
 
   const totalInvested = investmentRecords.reduce((sum, r) => sum + r.amountInvestedGhs, 0);
 
@@ -155,7 +152,7 @@ export default function MemberDetailView({ id }: { id: string }) {
               {investmentRecords.map((record) => (
                 <div key={record.id} className="flex flex-col gap-1 border-b border-grid-line py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-0.5">
-                    <span className="font-jakarta text-sm font-medium text-cream">{slotLabel(slotsById[record.slotId])}</span>
+                    <span className="font-jakarta text-sm font-medium text-cream">{slotLabel(record)}</span>
                     <span className="font-sans text-xs text-cream-dim">
                       Invested {formatDisplayDate(record.dateInvested)} · Earnings to date {formatGhs(record.earningsToDateGhs)}
                     </span>
