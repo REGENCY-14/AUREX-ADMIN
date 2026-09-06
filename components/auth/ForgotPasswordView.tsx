@@ -86,8 +86,7 @@ export default function ForgotPasswordView() {
           disabled={submitting}
           className="mt-1 flex items-center justify-center gap-2 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitting && <SpinnerIcon className="size-4 animate-spin" />}
-          {submitting ? "Sending…" : "Send Reset Link"}
+          {submitting ? <SpinnerIcon className="size-4 animate-spin" /> : "Send Reset Link"}
         </motion.button>
       </form>
     </AuthCard>

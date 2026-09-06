@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Select from "@/components/admin/Select";
+import { SpinnerIcon } from "@/components/icons";
 import type { ContentBlock, ContentBlockState } from "@/lib/homeContent";
 
 const INPUT_CLASSNAME =
@@ -18,13 +19,14 @@ export default function ContentForm({
 }: {
   block?: ContentBlock;
   onCancel: () => void;
-  onSave: (values: ContentFormValues) => void;
+  onSave: (values: ContentFormValues) => void | Promise<void>;
 }) {
   const [values, setValues] = useState<ContentFormValues>({
     title: block?.title ?? "",
     body: block?.body ?? "",
     state: block?.state ?? "draft",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function set<K extends keyof ContentFormValues>(key: K, value: ContentFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -33,10 +35,15 @@ export default function ContentForm({
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         if (!values.title.trim()) return;
-        onSave(values);
+        setIsSubmitting(true);
+        try {
+          await onSave(values);
+        } finally {
+          setIsSubmitting(false);
+        }
       }}
     >
       <label className={LABEL_CLASSNAME}>
@@ -62,11 +69,20 @@ export default function ContentForm({
       </label>
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-grid-line pt-4">
-        <button type="button" onClick={onCancel} className="font-sans text-sm text-cream-dim transition-colors hover:text-cream">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="font-sans text-sm text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
+        >
           Cancel
         </button>
-        <button type="submit" className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack">
-          {block ? "Save Changes" : "Add Block"}
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? <SpinnerIcon className="mx-auto size-4 animate-spin" /> : block ? "Save Changes" : "Add Block"}
         </button>
       </div>
     </form>

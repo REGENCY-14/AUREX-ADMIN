@@ -249,8 +249,11 @@ export default function ApplicationDetailView({ id }: { id: string }) {
               disabled={isSubmitting}
               className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? <SpinnerIcon className="size-3.5 animate-spin" /> : <CheckIcon className="size-3.5" />}
-              {isSubmitting ? "Approving…" : "Approve"}
+              {isSubmitting ? <SpinnerIcon className="size-3.5 animate-spin" /> : (
+                <>
+                  <CheckIcon className="size-3.5" /> Approve
+                </>
+              )}
             </motion.button>
             <motion.button
               {...(isSubmitting ? {} : hoverScale)}
@@ -284,7 +287,11 @@ export default function ApplicationDetailView({ id }: { id: string }) {
                 disabled={isSubmitting}
                 className="flex items-center gap-1.5 border border-[#f87171]/30 px-5 py-2.5 font-jakarta text-sm font-medium text-[#f87171] transition-colors hover:border-[#f87171] hover:bg-[#f87171]/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <XIcon className="size-3.5" /> {isSubmitting ? "Rejecting…" : "Confirm Rejection"}
+                {isSubmitting ? <SpinnerIcon className="size-3.5 animate-spin" /> : (
+                  <>
+                    <XIcon className="size-3.5" /> Confirm Rejection
+                  </>
+                )}
               </motion.button>
               <button
                 type="button"
@@ -308,8 +315,11 @@ export default function ApplicationDetailView({ id }: { id: string }) {
               disabled={isResending}
               className="flex items-center gap-1.5 border border-gold/30 px-5 py-2.5 font-jakarta text-sm font-medium text-gold-bright transition-colors hover:border-gold/60 hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isResending ? <SpinnerIcon className="size-3.5 animate-spin" /> : <MailIcon className="size-3.5" />}
-              {isResending ? "Resending…" : "Resend confirmation link"}
+              {isResending ? <SpinnerIcon className="size-3.5 animate-spin" /> : (
+                <>
+                  <MailIcon className="size-3.5" /> Resend confirmation link
+                </>
+              )}
             </motion.button>
           </div>
         )}

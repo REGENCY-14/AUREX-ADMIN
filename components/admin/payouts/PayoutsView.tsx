@@ -56,19 +56,31 @@ function amountCellText(payout: Payout): string {
   return formatGhs(payout.amountGhs);
 }
 
-function SeasonForm({ onCancel, onSave }: { onCancel: () => void; onSave: (values: { name: string; startDate: string; endDate: string }) => void }) {
+function SeasonForm({
+  onCancel,
+  onSave,
+}: {
+  onCancel: () => void;
+  onSave: (values: { name: string; startDate: string; endDate: string }) => void | Promise<void>;
+}) {
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const canSubmit = name.trim() && startDate && endDate;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const canSubmit = name.trim() && startDate && endDate && !isSubmitting;
 
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         if (!canSubmit) return;
-        onSave({ name, startDate, endDate });
+        setIsSubmitting(true);
+        try {
+          await onSave({ name, startDate, endDate });
+        } finally {
+          setIsSubmitting(false);
+        }
       }}
     >
       <label className="flex flex-col gap-1.5">
@@ -92,7 +104,12 @@ function SeasonForm({ onCancel, onSave }: { onCancel: () => void; onSave: (value
         </label>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-grid-line pt-4">
-        <button type="button" onClick={onCancel} className="font-sans text-sm text-cream-dim transition-colors hover:text-cream">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="font-sans text-sm text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
+        >
           Cancel
         </button>
         <button
@@ -100,7 +117,7 @@ function SeasonForm({ onCancel, onSave }: { onCancel: () => void; onSave: (value
           disabled={!canSubmit}
           className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Create Season
+          {isSubmitting ? <SpinnerIcon className="mx-auto size-4 animate-spin" /> : "Create Season"}
         </button>
       </div>
     </form>
@@ -117,6 +134,7 @@ export default function PayoutsView() {
   const [seasonModalOpen, setSeasonModalOpen] = useState(false);
   const [payingPayout, setPayingPayout] = useState<Payout | null>(null);
   const [payAmountInput, setPayAmountInput] = useState("");
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -145,6 +163,7 @@ export default function PayoutsView() {
     if (!payingPayout) return;
     const amount = Number(payAmountInput);
     if (!(amount > 0)) return;
+    setIsMarkingPaid(true);
     try {
       const updated = await markPayoutPaid(payingPayout.id, amount);
       setPayouts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -152,6 +171,8 @@ export default function PayoutsView() {
       setPayingPayout(null);
     } catch (err) {
       setBanner(err instanceof ApiError ? err.message : "Failed to mark payout paid.");
+    } finally {
+      setIsMarkingPaid(false);
     }
   }
 
@@ -397,17 +418,22 @@ export default function PayoutsView() {
             />
           </label>
           <div className="flex flex-wrap items-center justify-end gap-3 border-t border-grid-line pt-4">
-            <button type="button" onClick={() => setPayingPayout(null)} className="font-sans text-sm text-cream-dim transition-colors hover:text-cream">
+            <button
+              type="button"
+              onClick={() => setPayingPayout(null)}
+              disabled={isMarkingPaid}
+              className="font-sans text-sm text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
+            >
               Cancel
             </button>
             <motion.button
               {...hoverScale}
               type="button"
               onClick={handleConfirmPaid}
-              disabled={!(Number(payAmountInput) > 0)}
+              disabled={!(Number(payAmountInput) > 0) || isMarkingPaid}
               className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Confirm Paid
+              {isMarkingPaid ? <SpinnerIcon className="mx-auto size-4 animate-spin" /> : "Confirm Paid"}
             </motion.button>
           </div>
         </div>

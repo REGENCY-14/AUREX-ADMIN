@@ -159,7 +159,8 @@ export default function RegisterView() {
               type="button"
               aria-label={showPassword ? "Hide password" : "Show password"}
               onClick={() => setShowPassword((v) => !v)}
-              className="text-cream-dim transition-colors hover:text-cream"
+              disabled={submitting}
+              className="text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
             >
               {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
             </button>
@@ -183,8 +184,7 @@ export default function RegisterView() {
           disabled={submitting}
           className="mt-1 flex items-center justify-center gap-2 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitting && <SpinnerIcon className="size-4 animate-spin" />}
-          {submitting ? "Creating account…" : "Create Account"}
+          {submitting ? <SpinnerIcon className="size-4 animate-spin" /> : "Create Account"}
         </motion.button>
       </form>
     </AuthCard>

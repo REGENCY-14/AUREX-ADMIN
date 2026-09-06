@@ -25,6 +25,7 @@ export default function InvestmentsView() {
   const [banner, setBanner] = useState<string | null>(null);
   const [editingEarnings, setEditingEarnings] = useState<InvestmentRecord | null>(null);
   const [earningsInput, setEarningsInput] = useState("");
+  const [isSavingEarnings, setIsSavingEarnings] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -74,6 +75,7 @@ export default function InvestmentsView() {
   async function handleSaveEarnings() {
     if (!editingEarnings) return;
     const earnings = Number(earningsInput) || 0;
+    setIsSavingEarnings(true);
     try {
       const updated = await updateEarnings(editingEarnings.id, editingEarnings.amountInvestedGhs + earnings);
       setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -81,6 +83,8 @@ export default function InvestmentsView() {
       setEditingEarnings(null);
     } catch (err) {
       setBanner(err instanceof ApiError ? err.message : "Failed to update earnings.");
+    } finally {
+      setIsSavingEarnings(false);
     }
   }
 
@@ -210,16 +214,22 @@ export default function InvestmentsView() {
             />
           </label>
           <div className="flex flex-wrap items-center justify-end gap-3 border-t border-grid-line pt-4">
-            <button type="button" onClick={() => setEditingEarnings(null)} className="font-sans text-sm text-cream-dim transition-colors hover:text-cream">
+            <button
+              type="button"
+              onClick={() => setEditingEarnings(null)}
+              disabled={isSavingEarnings}
+              className="font-sans text-sm text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
+            >
               Cancel
             </button>
             <motion.button
               {...hoverScale}
               type="button"
               onClick={handleSaveEarnings}
-              className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack"
+              disabled={isSavingEarnings}
+              className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Save
+              {isSavingEarnings ? <SpinnerIcon className="mx-auto size-4 animate-spin" /> : "Save"}
             </motion.button>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatGhs } from "@/lib/formatters";
+import { SpinnerIcon } from "@/components/icons";
 import { LISTING_STATUS_LABEL, getFundingPercent, type BusinessListing } from "@/lib/businessListings";
 
 const INPUT_CLASSNAME =
@@ -21,12 +22,13 @@ export default function ListingForm({
 }: {
   listing: BusinessListing;
   onCancel: () => void;
-  onSave: (values: ListingFormValues) => void;
+  onSave: (values: ListingFormValues) => void | Promise<void>;
 }) {
   const [values, setValues] = useState<ListingFormValues>({
     description: listing.description,
     fundingPurpose: listing.fundingPurpose,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function set<K extends keyof ListingFormValues>(key: K, value: ListingFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -35,9 +37,14 @@ export default function ListingForm({
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        onSave(values);
+        setIsSubmitting(true);
+        try {
+          await onSave(values);
+        } finally {
+          setIsSubmitting(false);
+        }
       }}
     >
       <div className="flex flex-wrap items-center gap-3 border border-grid-line bg-panel/40 px-3 py-2 font-sans text-xs text-cream-dim">
@@ -72,11 +79,20 @@ export default function ListingForm({
       </label>
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-grid-line pt-4">
-        <button type="button" onClick={onCancel} className="font-sans text-sm text-cream-dim transition-colors hover:text-cream">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="font-sans text-sm text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
+        >
           Cancel
         </button>
-        <button type="submit" className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack">
-          Save Changes
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? <SpinnerIcon className="mx-auto size-4 animate-spin" /> : "Save Changes"}
         </button>
       </div>
     </form>

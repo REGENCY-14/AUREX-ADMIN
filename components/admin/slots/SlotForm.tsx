@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Select from "@/components/admin/Select";
 import DatePicker from "@/components/admin/DatePicker";
+import { SpinnerIcon } from "@/components/icons";
 import type { ApprovedBusiness } from "@/lib/businesses";
 import type { InvestmentSlot, PayoutFrequency, SlotPackage } from "@/lib/packages";
 
@@ -56,14 +57,34 @@ export default function SlotForm({
   slot?: InvestmentSlot;
   approvedBusinesses: ApprovedBusiness[];
   onCancel: () => void;
-  onSaveDraft: (values: SlotFormValues) => void;
-  onPublish: (values: SlotFormValues) => void;
+  onSaveDraft: (values: SlotFormValues) => void | Promise<void>;
+  onPublish: (values: SlotFormValues) => void | Promise<void>;
   publishError?: string;
 }) {
   const [values, setValues] = useState<SlotFormValues>(() => toFormValues(slot));
+  const [pendingAction, setPendingAction] = useState<"draft" | "publish" | null>(null);
+  const isPending = pendingAction !== null;
 
   function set<K extends keyof SlotFormValues>(key: K, value: SlotFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
+  }
+
+  async function handleSaveDraft() {
+    setPendingAction("draft");
+    try {
+      await onSaveDraft(values);
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handlePublish() {
+    setPendingAction("publish");
+    try {
+      await onPublish(values);
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   return (
@@ -182,22 +203,29 @@ export default function SlotForm({
       {publishError && <p className="font-sans text-sm text-[#f87171]">{publishError}</p>}
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-grid-line pt-4">
-        <button type="button" onClick={onCancel} className="font-sans text-sm text-cream-dim transition-colors hover:text-cream">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isPending}
+          className="font-sans text-sm text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
+        >
           Cancel
         </button>
         <button
           type="button"
-          onClick={() => onSaveDraft(values)}
-          className="border border-gold/30 px-4 py-2 font-jakarta text-sm font-medium text-gold-bright transition-colors hover:border-gold hover:bg-gold/5"
+          onClick={handleSaveDraft}
+          disabled={isPending}
+          className="border border-gold/30 px-4 py-2 font-jakarta text-sm font-medium text-gold-bright transition-colors hover:border-gold hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Save as Draft
+          {pendingAction === "draft" ? <SpinnerIcon className="mx-auto size-4 animate-spin" /> : "Save as Draft"}
         </button>
         <button
           type="button"
-          onClick={() => onPublish(values)}
-          className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack"
+          onClick={handlePublish}
+          disabled={isPending}
+          className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Publish
+          {pendingAction === "publish" ? <SpinnerIcon className="mx-auto size-4 animate-spin" /> : "Publish"}
         </button>
       </div>
     </form>

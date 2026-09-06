@@ -267,8 +267,7 @@ export default function ReportDetailView({ id }: { id: string }) {
             disabled={isSubmitting}
             className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmitting && <SpinnerIcon className="size-3.5 animate-spin" />}
-            {isSubmitting ? "Saving…" : "Save"}
+            {isSubmitting ? <SpinnerIcon className="size-3.5 animate-spin" /> : "Save"}
           </motion.button>
         </div>
       </motion.section>

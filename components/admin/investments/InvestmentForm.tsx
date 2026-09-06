@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { hoverScale } from "@/lib/motion";
 import { motion } from "framer-motion";
-import { UploadIcon } from "@/components/icons";
+import { SpinnerIcon, UploadIcon } from "@/components/icons";
 import Select from "@/components/admin/Select";
 import DatePicker from "@/components/admin/DatePicker";
 import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/packages";
@@ -181,7 +181,7 @@ export default function InvestmentForm({
           disabled={!canSubmit}
           className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {isSubmitting ? "Recording…" : "Record Investment"}
+          {isSubmitting ? <SpinnerIcon className="mx-auto size-4 animate-spin" /> : "Record Investment"}
         </motion.button>
       </div>
     </form>
