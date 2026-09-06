@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import AuthCard from "@/components/auth/AuthCard";
 import AuthField from "@/components/auth/AuthField";
 import { hoverScale } from "@/lib/motion";
+import { isValidPassword, MIN_PASSWORD_LENGTH } from "@/lib/validation";
 import { LockIcon, EyeIcon, EyeOffIcon, SpinnerIcon, CheckIcon, ArrowLeftIcon } from "@/components/icons";
 
 /**
@@ -24,8 +25,8 @@ export default function ResetPasswordView() {
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (!isValidPassword(password)) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters and include a number and a symbol.`);
       return;
     }
     if (password !== confirmPassword) {

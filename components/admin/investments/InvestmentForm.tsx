@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { UploadIcon } from "@/components/icons";
 import Select from "@/components/admin/Select";
 import DatePicker from "@/components/admin/DatePicker";
-import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/investmentSlots";
+import { SLOT_PACKAGE_LABEL, type InvestmentSlot } from "@/lib/packages";
 import type { Member } from "@/lib/members";
 
 const INPUT_CLASSNAME =
@@ -14,37 +14,35 @@ const INPUT_CLASSNAME =
 const LABEL_CLASSNAME = "flex flex-col gap-1.5";
 const LABEL_TEXT_CLASSNAME = "font-sans text-xs uppercase tracking-wide text-cream-dim";
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "", label: "Select a method" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "mobile_money", label: "Mobile Money" },
+  { value: "cash", label: "Cash" },
+];
+
 export type InvestmentFormValues = {
   memberId: string;
-  slotId: string;
+  packageId: string;
   amountInvestedGhs: string;
   dateInvested: string;
-  proofOfPaymentFileName?: string;
+  method: "bank_transfer" | "mobile_money" | "cash" | "";
+  reference: string;
+  proofOfPayment: File | null;
   notes: string;
 };
 
 const EMPTY_VALUES: InvestmentFormValues = {
   memberId: "",
-  slotId: "",
+  packageId: "",
   amountInvestedGhs: "",
   dateInvested: "",
+  method: "",
+  reference: "",
+  proofOfPayment: null,
   notes: "",
 };
 
-/**
- * The Investment Recording Tool's form. Slot options are limited to
- * `openSlots` (passed in already filtered) — recording a fresh deposit
- * against a draft or already-closed slot isn't a real scenario. A
- * top-up (an existing member investing again, even into the same slot)
- * submits through this exact same form and always creates a new record —
- * there's no "edit an existing investment's amount" path here on purpose,
- * per the brief, to preserve history.
- *
- * The file input is real (native <input type="file">) but only ever
- * reads the file's name into state — there's no file storage backend
- * yet, and this admin app doesn't use localStorage/sessionStorage to
- * fake persisting the file itself.
- */
 export default function InvestmentForm({
   investors,
   openSlots,
@@ -52,24 +50,36 @@ export default function InvestmentForm({
 }: {
   investors: Member[];
   openSlots: InvestmentSlot[];
-  onSubmit: (values: InvestmentFormValues) => void;
+  onSubmit: (values: InvestmentFormValues) => void | Promise<void>;
 }) {
   const [values, setValues] = useState<InvestmentFormValues>(EMPTY_VALUES);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function set<K extends keyof InvestmentFormValues>(key: K, value: InvestmentFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
   }
 
-  const canSubmit = values.memberId && values.slotId && Number(values.amountInvestedGhs) > 0 && values.dateInvested;
+  const canSubmit =
+    values.memberId &&
+    values.packageId &&
+    Number(values.amountInvestedGhs) > 0 &&
+    values.dateInvested &&
+    values.method &&
+    !isSubmitting;
 
   return (
     <form
       className="flex flex-col gap-4 border border-grid-line bg-panel/20 p-6"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         if (!canSubmit) return;
-        onSubmit(values);
-        setValues(EMPTY_VALUES);
+        setIsSubmitting(true);
+        try {
+          await onSubmit(values);
+          setValues(EMPTY_VALUES);
+        } finally {
+          setIsSubmitting(false);
+        }
       }}
     >
       <h2 className="font-jakarta text-lg font-semibold text-cream">Record an Investment</h2>
@@ -90,8 +100,8 @@ export default function InvestmentForm({
         <label className={LABEL_CLASSNAME}>
           <span className={LABEL_TEXT_CLASSNAME}>Slot / Package</span>
           <Select
-            value={values.slotId}
-            onChange={(v) => set("slotId", v)}
+            value={values.packageId}
+            onChange={(v) => set("packageId", v)}
             options={[
               { value: "", label: "Select an open slot" },
               ...openSlots.map((s) => ({ value: s.id, label: `${SLOT_PACKAGE_LABEL[s.package]} (${s.ratePercentLabel})` })),
@@ -115,6 +125,26 @@ export default function InvestmentForm({
           <span className={LABEL_TEXT_CLASSNAME}>Date Invested</span>
           <DatePicker value={values.dateInvested} onChange={(v) => set("dateInvested", v)} ariaLabel="Date invested" />
         </label>
+
+        <label className={LABEL_CLASSNAME}>
+          <span className={LABEL_TEXT_CLASSNAME}>Payment Method</span>
+          <Select
+            value={values.method}
+            onChange={(v) => set("method", v as InvestmentFormValues["method"])}
+            options={PAYMENT_METHOD_OPTIONS}
+          />
+        </label>
+
+        <label className={LABEL_CLASSNAME}>
+          <span className={LABEL_TEXT_CLASSNAME}>Reference (optional)</span>
+          <input
+            type="text"
+            value={values.reference}
+            onChange={(e) => set("reference", e.target.value)}
+            placeholder="e.g. bank transfer reference"
+            className={INPUT_CLASSNAME}
+          />
+        </label>
       </div>
 
       <label className={LABEL_CLASSNAME}>
@@ -126,10 +156,10 @@ export default function InvestmentForm({
             <input
               type="file"
               className="sr-only"
-              onChange={(e) => set("proofOfPaymentFileName", e.target.files?.[0]?.name)}
+              onChange={(e) => set("proofOfPayment", e.target.files?.[0] ?? null)}
             />
           </label>
-          <span className="truncate font-sans text-xs text-cream-dim">{values.proofOfPaymentFileName ?? "No file selected"}</span>
+          <span className="truncate font-sans text-xs text-cream-dim">{values.proofOfPayment?.name ?? "No file selected"}</span>
         </div>
       </label>
 
@@ -151,7 +181,7 @@ export default function InvestmentForm({
           disabled={!canSubmit}
           className="bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-5 py-2.5 font-jakarta text-sm font-medium text-amainblack disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Record Investment
+          {isSubmitting ? "Recording…" : "Record Investment"}
         </motion.button>
       </div>
     </form>

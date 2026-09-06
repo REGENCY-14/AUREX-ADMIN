@@ -11,19 +11,25 @@ import SegmentedBar from "@/components/admin/overview/charts/SegmentedBar";
 import PackagePieChart from "@/components/admin/overview/charts/PackagePieChart";
 import { useSession } from "@/lib/auth";
 import { getApplications, getPendingApplicationCount } from "@/lib/applications";
-import type { MonthlyInvestedPoint, PackageAllocation } from "@/lib/investments";
+import {
+  fetchInvestedByPackage,
+  fetchMonthlyInvestedTrend,
+  type MonthlyInvestedPoint,
+  type PackageAllocation,
+} from "@/lib/investments";
+import { fetchAdminPackages } from "@/lib/packages";
+import { fetchBusinessListings } from "@/lib/businessListings";
 
 export type OverviewStats = {
   investorCount: number;
   businessOwnerCount: number;
-  openSlotCount: number;
-  liveListingCount: number;
   openReportCount: number;
 };
 
 export type ApplicationStatusCounts = { pending: number; approved: number; rejected: number };
 
 const EMPTY_APPLICATION_STATUS_COUNTS: ApplicationStatusCounts = { pending: 0, approved: 0, rejected: 0 };
+const EMPTY_PACKAGE_ALLOCATION: PackageAllocation = { core: 0, ventures: 0 };
 
 /**
  * The Admin landing page. Two rows below the header, each pairing a
@@ -53,33 +59,38 @@ const EMPTY_APPLICATION_STATUS_COUNTS: ApplicationStatusCounts = { pending: 0, a
  * has one real hue (gold) plus its already-established green/red status
  * pair, not an invented multi-hue categorical palette.
  */
-export default function OverviewView({
-  stats,
-  investedTrend,
-  packageAllocation,
-}: {
-  stats: OverviewStats;
-  investedTrend: MonthlyInvestedPoint[];
-  packageAllocation: PackageAllocation;
-}) {
+export default function OverviewView({ stats }: { stats: OverviewStats }) {
   const { session } = useSession();
   const [pendingApplications, setPendingApplications] = useState(0);
   const [applicationStatusCounts, setApplicationStatusCounts] = useState(EMPTY_APPLICATION_STATUS_COUNTS);
+  const [investedTrend, setInvestedTrend] = useState<MonthlyInvestedPoint[]>([]);
+  const [packageAllocation, setPackageAllocation] = useState<PackageAllocation>(EMPTY_PACKAGE_ALLOCATION);
+  const [openSlotCount, setOpenSlotCount] = useState(0);
+  const [liveListingCount, setLiveListingCount] = useState(0);
 
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    Promise.all([getApplications(), getPendingApplicationCount()]).then(
-      ([applications, pending]) => {
-        if (cancelled) return;
-        setPendingApplications(pending);
-        setApplicationStatusCounts({
-          pending: applications.filter((a) => a.status === "pending").length,
-          approved: applications.filter((a) => a.status === "approved").length,
-          rejected: applications.filter((a) => a.status === "rejected").length,
-        });
-      },
-    );
+    Promise.all([
+      getApplications(),
+      getPendingApplicationCount(),
+      fetchMonthlyInvestedTrend(),
+      fetchInvestedByPackage(),
+      fetchAdminPackages(),
+      fetchBusinessListings(),
+    ]).then(([applications, pending, trend, allocation, packages, listings]) => {
+      if (cancelled) return;
+      setPendingApplications(pending);
+      setApplicationStatusCounts({
+        pending: applications.filter((a) => a.status === "pending").length,
+        approved: applications.filter((a) => a.status === "approved").length,
+        rejected: applications.filter((a) => a.status === "rejected").length,
+      });
+      setInvestedTrend(trend);
+      setPackageAllocation(allocation);
+      setOpenSlotCount(packages.filter((p) => p.status === "active").length);
+      setLiveListingCount(listings.filter((l) => l.status === "live").length);
+    });
     return () => {
       cancelled = true;
     };
@@ -114,14 +125,14 @@ export default function OverviewView({
           />
           <StatCard
             label="Open Investment Slots"
-            value={String(stats.openSlotCount)}
-            href="/slots?status=open"
+            value={String(openSlotCount)}
+            href="/slots?status=active"
             sublabel="Currently accepting investment"
             icon={LayersIcon}
           />
           <StatCard
             label="Live Business Listings"
-            value={String(stats.liveListingCount)}
+            value={String(liveListingCount)}
             href="/listings?status=live"
             sublabel="Raising funds now"
             icon={BriefcaseIcon}

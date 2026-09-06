@@ -1,16 +1,4 @@
-/**
- * Business listings — the Ventures-side businesses AUREX has approved to
- * raise funding. No backend exists yet, so this is realistic mock data
- * shaped like what a real listings table would hold. Referenced by
- * lib/investmentSlots.ts (a Ventures slot links to one of these) and
- * lib/members.ts (a Business Owner member owns one of these).
- *
- * `status` is the one field only Admin ever changes — never the business
- * owner, per the brief. "Approved" (as in "a Ventures slot can only link
- * to an approved business listing") means anything past `pending`: once
- * Admin has taken a listing live, it's approved, whether it's currently
- * live, fully funded, or since closed.
- */
+import { apiFetch } from "@/lib/api/client";
 
 export type ListingStatus = "pending" | "live" | "funded" | "closed";
 
@@ -31,77 +19,72 @@ export type BusinessListing = {
   amountRaisedGhs: number;
   backerCount: number;
   status: ListingStatus;
-  businessRegDocument: { fileName: string; uploadedAt: string };
+  businessRegDocument?: { fileName: string; uploadedAt: string; url: string };
 };
 
-export const BUSINESS_LISTINGS: BusinessListing[] = [
-  {
-    id: "list-01",
-    businessName: "GreenHarvest Foods",
-    ownerNickname: "HarvestHQ",
-    description:
-      "GreenHarvest Foods packages and distributes locally-grown produce across Accra, working directly with smallholder farmers.",
-    fundingPurpose: "A second cold-storage facility to serve two new markets.",
-    fundingGoalGhs: 50_000,
-    amountRaisedGhs: 32_000,
-    backerCount: 14,
-    status: "live",
-    businessRegDocument: { fileName: "greenharvest-certificate.pdf", uploadedAt: "2025-10-10" },
-  },
-  {
-    id: "list-02",
-    businessName: "Atlas Freight Logistics",
-    ownerNickname: "FreightAtlas",
-    description: "Atlas Freight Logistics runs a fleet of trucks moving goods between Accra, Kumasi, and Takoradi.",
-    fundingPurpose: "Three additional trucks to cover a new Takoradi route.",
-    fundingGoalGhs: 40_000,
-    amountRaisedGhs: 40_000,
-    backerCount: 21,
-    status: "funded",
-    businessRegDocument: { fileName: "atlas-freight-certificate.pdf", uploadedAt: "2025-09-08" },
-  },
-  {
-    id: "list-03",
-    businessName: "CedarCraft Furniture",
-    ownerNickname: "CedarCraftCo",
-    description: "CedarCraft Furniture designs and builds solid-wood furniture, sold direct-to-consumer and wholesale.",
-    fundingPurpose: "A larger workshop space and two more carpenters.",
-    fundingGoalGhs: 30_000,
-    amountRaisedGhs: 0,
-    backerCount: 0,
-    status: "pending",
-    businessRegDocument: { fileName: "cedarcraft-certificate.pdf", uploadedAt: "2026-08-18" },
-  },
-  {
-    id: "list-04",
-    businessName: "Accra Brew Collective",
-    ownerNickname: "BrewCollectiveHQ",
-    description: "Accra Brew Collective is a small-batch craft brewery supplying bars and restaurants across the city.",
-    fundingPurpose: "New fermentation tanks to triple monthly output.",
-    fundingGoalGhs: 25_000,
-    amountRaisedGhs: 18_000,
-    backerCount: 9,
-    status: "closed",
-    businessRegDocument: { fileName: "accra-brew-certificate.pdf", uploadedAt: "2025-08-01" },
-  },
-];
+type ListingApiRow = {
+  id: string;
+  business_name: string;
+  owner_nickname: string | null;
+  description: string | null;
+  funding_purpose: string | null;
+  funding_goal: string | null;
+  amount_raised: string;
+  backer_count: number;
+  status: ListingStatus;
+  business_reg_document_url: string | null;
+  business_reg_document_uploaded_at: string | null;
+};
 
-export function getBusinessListings(): BusinessListing[] {
-  return BUSINESS_LISTINGS;
+function fileNameFromUrl(url: string | null): string | undefined {
+  if (!url) return undefined;
+  try {
+    const pathname = new URL(url).pathname;
+    return decodeURIComponent(pathname.split("/").pop() || url);
+  } catch {
+    return url;
+  }
 }
 
-export function getBusinessListingById(id: string): BusinessListing | undefined {
-  return BUSINESS_LISTINGS.find((l) => l.id === id);
+function toBusinessListing(row: ListingApiRow): BusinessListing {
+  const fileName = fileNameFromUrl(row.business_reg_document_url);
+  return {
+    id: row.id,
+    businessName: row.business_name,
+    ownerNickname: row.owner_nickname ?? "—",
+    description: row.description ?? "",
+    fundingPurpose: row.funding_purpose ?? "",
+    fundingGoalGhs: row.funding_goal ? Number(row.funding_goal) : 0,
+    amountRaisedGhs: Number(row.amount_raised),
+    backerCount: row.backer_count,
+    status: row.status,
+    businessRegDocument:
+      fileName && row.business_reg_document_url
+        ? { fileName, uploadedAt: row.business_reg_document_uploaded_at ?? "", url: row.business_reg_document_url }
+        : undefined,
+  };
 }
 
-/** "Approved" = anything past `pending` — the only status a Ventures
- *  investment slot is allowed to link to (see lib/investmentSlots.ts's own
- *  publish validation). */
-export function getApprovedListings(): BusinessListing[] {
-  return BUSINESS_LISTINGS.filter((l) => l.status !== "pending");
+export async function fetchBusinessListings(): Promise<BusinessListing[]> {
+  try {
+    const { data } = await apiFetch<ListingApiRow[]>("/businesses/listings");
+    return data.map(toBusinessListing);
+  } catch {
+    return [];
+  }
 }
 
-/** Whole-percent progress toward the funding goal, capped at 100. */
+export async function updateBusinessListing(
+  id: string,
+  params: { description?: string; fundingPurpose?: string },
+): Promise<BusinessListing> {
+  const { data } = await apiFetch<ListingApiRow>(`/businesses/listings/${id}`, {
+    method: "PATCH",
+    body: { description: params.description, funding_purpose: params.fundingPurpose },
+  });
+  return toBusinessListing(data);
+}
+
 export function getFundingPercent(listing: BusinessListing): number {
   if (listing.fundingGoalGhs <= 0) return 0;
   return Math.min(100, Math.round((listing.amountRaisedGhs / listing.fundingGoalGhs) * 100));

@@ -21,6 +21,7 @@ import {
   BriefcaseIcon,
   MegaphoneIcon,
   BookIcon,
+  CalendarIcon,
   AlertIcon,
   LogOutIcon,
   ChevronDownIcon,
@@ -44,6 +45,7 @@ const NAV_LINKS: NavLink[] = [
   { label: "Admins", href: "/admins", icon: UserIcon },
   { label: "Investment Slots", href: "/slots", icon: LayersIcon },
   { label: "Record Investment", href: "/investments", icon: CoinsIcon },
+  { label: "Payouts", href: "/payouts", icon: CalendarIcon },
   { label: "Business Listings", href: "/listings", icon: BriefcaseIcon },
   { label: "Home Content", href: "/content", icon: MegaphoneIcon },
   { label: "Reports", href: "/reports", icon: BookIcon, badgeKey: "openReports" },
@@ -129,12 +131,16 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const { session, logout } = useSession();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [pendingApplications, setPendingApplications] = useState(0);
+  const [openReports, setOpenReports] = useState(0);
 
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
     void getPendingApplicationCount().then((count) => {
       if (!cancelled) setPendingApplications(count);
+    });
+    void getOpenReportCount().then((count) => {
+      if (!cancelled) setOpenReports(count);
     });
     return () => {
       cancelled = true;
@@ -143,7 +149,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   const badgeCounts = {
     pendingApplications,
-    openReports: getOpenReportCount(),
+    openReports,
   } as const;
 
   return (

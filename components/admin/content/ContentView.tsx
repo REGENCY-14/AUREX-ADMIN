@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/motion";
 import { formatDisplayDate } from "@/lib/formatters";
@@ -10,60 +10,76 @@ import Modal from "@/components/admin/Modal";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
 import ContentForm, { type ContentFormValues } from "@/components/admin/content/ContentForm";
-import { ArrowUpIcon, ArrowDownIcon, PlusIcon, TrashIcon, MegaphoneIcon } from "@/components/icons";
-import type { ContentBlock } from "@/lib/homeContent";
+import { ArrowUpIcon, ArrowDownIcon, PlusIcon, TrashIcon, MegaphoneIcon, SpinnerIcon } from "@/components/icons";
+import {
+  fetchContentBlocks,
+  createContentBlock,
+  updateContentBlock,
+  moveContentBlock,
+  deleteContentBlock,
+  type ContentBlock,
+} from "@/lib/homeContent";
+import { ApiError } from "@/lib/api/client";
+import { useSession } from "@/lib/auth";
 
-/**
- * Home Page Content Management: announcement blocks, reorderable via
- * simple up/down controls (drag-and-drop would need a new dependency
- * this admin app doesn't have — plain buttons cover "reorder" without
- * one, and stay fully keyboard-usable, which drag handles alone
- * wouldn't). Add/Edit share the same modal form as Slots/Listings;
- * Remove now asks first too, via ConfirmDialog — per feedback that
- * every important action should confirm, not only outright deletion,
- * so this one, which is exactly outright deletion, definitely does.
- */
-export default function ContentView({ blocks: initialBlocks }: { blocks: ContentBlock[] }) {
-  const [blocks, setBlocks] = useState(initialBlocks);
+export default function ContentView() {
+  const { session } = useSession();
+  const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingBlock, setEditingBlock] = useState<ContentBlock | "new" | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [confirmRemoveBlock, setConfirmRemoveBlock] = useState<ContentBlock | null>(null);
 
-  function move(id: string, direction: -1 | 1) {
-    setBlocks((prev) => {
-      const sorted = [...prev].sort((a, b) => a.order - b.order);
-      const index = sorted.findIndex((b) => b.id === id);
-      const targetIndex = index + direction;
-      if (index === -1 || targetIndex < 0 || targetIndex >= sorted.length) return prev;
-      const reordered = [...sorted];
-      [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
-      return reordered.map((block, i) => ({ ...block, order: i + 1 }));
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    fetchContentBlocks().then((rows) => {
+      if (cancelled) return;
+      setBlocks(rows);
+      setIsLoading(false);
     });
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
-  function remove(block: ContentBlock) {
-    setBlocks((prev) => prev.filter((b) => b.id !== block.id).map((b, i) => ({ ...b, order: i + 1 })));
-    setBanner(`"${block.title}" removed.`);
-  }
-
-  function handleSave(values: ContentFormValues) {
-    if (editingBlock === "new") {
-      const id = `content-${Math.random().toString(36).slice(2, 8)}`;
-      setBlocks((prev) => [
-        ...prev,
-        { id, title: values.title, body: values.body, state: values.state, order: prev.length + 1, updatedAt: new Date().toISOString().slice(0, 10) },
-      ]);
-      setBanner("Block added.");
-    } else if (editingBlock) {
-      const id = editingBlock.id;
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === id ? { ...b, title: values.title, body: values.body, state: values.state, updatedAt: new Date().toISOString().slice(0, 10) } : b
-        )
-      );
-      setBanner("Block updated.");
+  async function move(id: string, direction: "up" | "down") {
+    try {
+      const reordered = await moveContentBlock(id, direction);
+      setBlocks(reordered);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "Failed to reorder block.");
     }
-    setEditingBlock(null);
+  }
+
+  async function remove(block: ContentBlock) {
+    try {
+      await deleteContentBlock(block.id);
+      setBlocks((prev) => prev.filter((b) => b.id !== block.id));
+      setBanner(`"${block.title}" removed.`);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "Failed to remove block.");
+    }
+  }
+
+  async function handleSave(values: ContentFormValues) {
+    try {
+      if (editingBlock === "new") {
+        const created = await createContentBlock({ title: values.title, body: values.body });
+        const finalBlock = values.state === "published" ? await updateContentBlock(created.id, { state: "published" }) : created;
+        setBlocks((prev) => [...prev, finalBlock].sort((a, b) => a.order - b.order));
+        setBanner("Block added.");
+      } else if (editingBlock) {
+        const updated = await updateContentBlock(editingBlock.id, values);
+        setBlocks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+        setBanner("Block updated.");
+      }
+      setEditingBlock(null);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "Failed to save block.");
+    }
   }
 
   const sorted = [...blocks].sort((a, b) => a.order - b.order);
@@ -77,7 +93,7 @@ export default function ContentView({ blocks: initialBlocks }: { blocks: Content
     >
       <PageHeader
         title="Home Page Content"
-        description="Announcement blocks shown on the public AUREX home page, in this order."
+        description="Announcement blocks — publishing here is real, but the public site doesn't render them yet."
         action={
           <motion.button
             {...hoverScale}
@@ -96,11 +112,18 @@ export default function ContentView({ blocks: initialBlocks }: { blocks: Content
         </motion.div>
       )}
 
-      {sorted.length === 0 ? (
+      {isLoading ? (
+        <motion.div
+          variants={staggerItem}
+          className="flex items-center justify-center gap-2 border border-grid-line bg-panel/20 p-8 font-sans text-sm text-cream-dim"
+        >
+          <SpinnerIcon className="size-4 animate-spin" /> Loading content…
+        </motion.div>
+      ) : sorted.length === 0 ? (
         <EmptyState
           icon={MegaphoneIcon}
           title="No content blocks yet"
-          description="Announcement blocks you add here will show up on the public AUREX home page, in this order."
+          description="Add a block below. Note: the public site doesn't display these yet — this is admin-side persistence only."
           action={
             <button
               type="button"
@@ -127,7 +150,7 @@ export default function ContentView({ blocks: initialBlocks }: { blocks: Content
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => move(block.id, -1)}
+                  onClick={() => move(block.id, "up")}
                   disabled={index === 0}
                   aria-label="Move up"
                   className="flex size-8 items-center justify-center border border-grid-line text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-30"
@@ -136,7 +159,7 @@ export default function ContentView({ blocks: initialBlocks }: { blocks: Content
                 </button>
                 <button
                   type="button"
-                  onClick={() => move(block.id, 1)}
+                  onClick={() => move(block.id, "down")}
                   disabled={index === sorted.length - 1}
                   aria-label="Move down"
                   className="flex size-8 items-center justify-center border border-grid-line text-cream-dim transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-30"
@@ -184,7 +207,7 @@ export default function ContentView({ blocks: initialBlocks }: { blocks: Content
           if (confirmRemoveBlock) remove(confirmRemoveBlock);
         }}
         title="Remove this content block?"
-        description={confirmRemoveBlock ? `“${confirmRemoveBlock.title}” will no longer show on the public site.` : undefined}
+        description={confirmRemoveBlock ? `“${confirmRemoveBlock.title}” will be permanently deleted.` : undefined}
         confirmLabel="Remove"
         tone="danger"
       />

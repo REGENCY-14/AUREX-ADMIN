@@ -8,6 +8,7 @@ import AuthCard from "@/components/auth/AuthCard";
 import AuthField from "@/components/auth/AuthField";
 import { hoverScale } from "@/lib/motion";
 import { useSession } from "@/lib/auth";
+import { isValidPassword, MIN_PASSWORD_LENGTH } from "@/lib/validation";
 import { ApiError } from "@/lib/api/client";
 import { UserIcon, MailIcon, LockIcon, KeyIcon, EyeIcon, EyeOffIcon, SpinnerIcon } from "@/components/icons";
 
@@ -43,8 +44,8 @@ export default function RegisterView() {
       setError("Enter a valid email address.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (!isValidPassword(password)) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters and include a number and a symbol.`);
       return;
     }
     if (password !== confirmPassword) {
