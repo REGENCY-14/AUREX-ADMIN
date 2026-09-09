@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/motion";
 import { formatGhs, formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import Modal from "@/components/admin/Modal";
 import EmptyState from "@/components/admin/EmptyState";
+import Pagination from "@/components/admin/Pagination";
 import InvestmentForm, { type InvestmentFormValues } from "@/components/admin/investments/InvestmentForm";
 import { CoinsIcon, SpinnerIcon } from "@/components/icons";
 import { SLOT_PACKAGE_LABEL, fetchAdminPackages, type InvestmentSlot } from "@/lib/packages";
@@ -14,6 +15,8 @@ import { fetchMembers, type Member } from "@/lib/members";
 import { fetchInvestments, recordInvestment, updateEarnings, type InvestmentRecord } from "@/lib/investments";
 import { ApiError } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
+
+const PAGE_SIZE = 10;
 
 export default function InvestmentsView() {
   const { session } = useSession();
@@ -26,6 +29,7 @@ export default function InvestmentsView() {
   const [editingEarnings, setEditingEarnings] = useState<InvestmentRecord | null>(null);
   const [earningsInput, setEarningsInput] = useState("");
   const [isSavingEarnings, setIsSavingEarnings] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -47,6 +51,12 @@ export default function InvestmentsView() {
     };
   }, [session]);
 
+  const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+  const paginatedRecords = useMemo(
+    () => records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [records, page],
+  );
+
   async function handleRecord(values: InvestmentFormValues) {
     if (!values.method) return;
     try {
@@ -61,6 +71,7 @@ export default function InvestmentsView() {
         proofOfPayment: values.proofOfPayment,
       });
       setRecords((prev) => [record, ...prev]);
+      setPage(1);
       setBanner(`Recorded ${formatGhs(record.amountInvestedGhs)} for ${membersById[values.memberId]?.nickname ?? "member"}.`);
     } catch (err) {
       setBanner(err instanceof ApiError ? err.message : "Failed to record investment.");
@@ -140,7 +151,7 @@ export default function InvestmentsView() {
                       </tr>
                     </thead>
                     <tbody>
-                      {records.map((record) => (
+                      {paginatedRecords.map((record) => (
                         <motion.tr key={record.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
                           <td className="px-4 py-3 font-jakarta text-sm font-medium text-cream">{membersById[record.memberId]?.nickname ?? "—"}</td>
                           <td className="px-4 py-3 font-sans text-sm text-cream-dim">
@@ -168,7 +179,7 @@ export default function InvestmentsView() {
                 </div>
 
                 <div className="flex flex-col gap-3 lg:hidden">
-                  {records.map((record) => (
+                  {paginatedRecords.map((record) => (
                     <motion.div key={record.id} {...hoverLift} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <span className="font-jakarta text-sm font-semibold text-cream">{membersById[record.memberId]?.nickname ?? "—"}</span>
@@ -190,6 +201,8 @@ export default function InvestmentsView() {
                     </motion.div>
                   ))}
                 </div>
+
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
               </>
             )}
           </motion.div>

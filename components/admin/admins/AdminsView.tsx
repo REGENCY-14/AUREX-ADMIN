@@ -11,6 +11,7 @@ import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
+import Pagination from "@/components/admin/Pagination";
 import ActionsMenu, { type ActionMenuItem } from "@/components/admin/ActionsMenu";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
 import { CheckIcon, XIcon, SearchIcon, SpinnerIcon, UserIcon } from "@/components/icons";
@@ -52,6 +53,8 @@ const CONFIRM_COPY: Record<
   },
 };
 
+const PAGE_SIZE = 10;
+
 function SuperAdminTag() {
   return (
     <span className="rounded-full bg-gold/15 px-2 py-0.5 font-jakarta text-[10px] font-semibold uppercase tracking-wide text-gold-bright">
@@ -79,6 +82,7 @@ export default function AdminsView() {
   const [actionFailed, setActionFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: AdminAction; admin: Admin } | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -103,6 +107,13 @@ export default function AdminsView() {
       (a) => a.nickname.toLowerCase().includes(q) || a.realName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q),
     );
   }, [admins, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
 
   function actionItems(admin: Admin): ActionMenuItem[] {
     if (!isSuperAdmin || admin.status !== "pending") return [];
@@ -180,7 +191,10 @@ export default function AdminsView() {
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(1);
+          }}
           placeholder="Search by nickname, name, or email…"
           className="w-full border border-grid-line bg-panel/60 py-2 pl-9 pr-3 font-sans text-sm text-cream placeholder:text-cream-dim/60 focus:border-gold/50 focus:outline-none"
         />
@@ -231,7 +245,7 @@ export default function AdminsView() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((admin) => {
+                {paginated.map((admin) => {
                   const items = actionItems(admin);
                   return (
                     <motion.tr
@@ -274,7 +288,7 @@ export default function AdminsView() {
           </motion.div>
 
           <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
-            {filtered.map((admin) => {
+            {paginated.map((admin) => {
               const items = actionItems(admin);
               return (
                 <div
@@ -308,6 +322,10 @@ export default function AdminsView() {
                 </div>
               );
             })}
+          </motion.div>
+
+          <motion.div variants={staggerItem}>
+            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
           </motion.div>
         </>
       )}

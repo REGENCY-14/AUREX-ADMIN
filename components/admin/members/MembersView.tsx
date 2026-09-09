@@ -10,6 +10,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import EmptyState from "@/components/admin/EmptyState";
+import Pagination from "@/components/admin/Pagination";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
 import { SearchIcon, SpinnerIcon, UsersIcon } from "@/components/icons";
 import { useSession } from "@/lib/auth";
@@ -25,12 +26,15 @@ const TRACK_LABEL: Record<MemberTrack, string> = {
   business: "Business Owner",
 };
 
+const PAGE_SIZE = 10;
+
 export default function MembersView() {
   const router = useRouter();
   const { session } = useSession();
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -54,6 +58,13 @@ export default function MembersView() {
     return members.filter((m) => m.nickname.toLowerCase().includes(q) || m.realName.toLowerCase().includes(q));
   }, [members, query]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -68,7 +79,10 @@ export default function MembersView() {
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(1);
+          }}
           placeholder="Search by nickname or real name…"
           className="w-full border border-grid-line bg-panel/60 py-2 pl-9 pr-3 font-sans text-sm text-cream placeholder:text-cream-dim/60 focus:border-gold/50 focus:outline-none"
         />
@@ -118,7 +132,7 @@ export default function MembersView() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((member) => (
+                {paginated.map((member) => (
                   <motion.tr
                     key={member.id}
                     {...hoverLift}
@@ -146,7 +160,7 @@ export default function MembersView() {
           </motion.div>
 
           <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
-            {filtered.map((member) => (
+            {paginated.map((member) => (
               <motion.div key={`filtered-${member.id}`} {...hoverLift}>
                 <Link
                   href={`/members/${member.id}`}
@@ -169,6 +183,10 @@ export default function MembersView() {
                 </Link>
               </motion.div>
             ))}
+          </motion.div>
+
+          <motion.div variants={staggerItem}>
+            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
           </motion.div>
         </>
       )}

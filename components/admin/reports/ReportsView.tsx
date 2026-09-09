@@ -12,6 +12,7 @@ import StatusDot from "@/components/admin/StatusDot";
 import PriorityTag from "@/components/admin/reports/PriorityTag";
 import Select from "@/components/admin/Select";
 import EmptyState from "@/components/admin/EmptyState";
+import Pagination from "@/components/admin/Pagination";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
 import { ArrowUpIcon, ArrowDownIcon, BookIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
 import { useSession } from "@/lib/auth";
@@ -53,6 +54,8 @@ const STATUS_OPTIONS = [
 ];
 
 type SortKey = "triage" | "date" | "priority";
+
+const PAGE_SIZE = 10;
 
 /** Open (or in-progress) + high/critical-priority reports get the same
  *  red-accent row treatment DANGER_ROW_CLASSNAME uses elsewhere for
@@ -130,6 +133,7 @@ export default function ReportsView({ initialStatus = "all" }: { initialStatus?:
   const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">(initialStatus);
   const [sortKey, setSortKey] = useState<SortKey>("triage");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -166,6 +170,7 @@ export default function ReportsView({ initialStatus = "all" }: { initialStatus?:
       setSortKey(key);
       setSortDir("desc");
     }
+    setPage(1);
   }
 
   const filtered = useMemo(() => {
@@ -176,6 +181,13 @@ export default function ReportsView({ initialStatus = "all" }: { initialStatus?:
       .filter((r) => statusFilter === "all" || r.status === statusFilter)
       .sort((a, b) => compareReports(a, b, sortKey, sortDir));
   }, [reports, membersById, roleFilter, categoryFilter, priorityFilter, statusFilter, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
 
   if (isLoading) {
     return (
@@ -195,22 +207,39 @@ export default function ReportsView({ initialStatus = "all" }: { initialStatus?:
       <PageHeader title="Report / Complaint Inbox" description="Reports Investors and Business Owners have filed from their dashboard." />
 
       <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
-        <Select value={roleFilter} onChange={(v) => setRoleFilter(v as MemberTrack | "all")} options={ROLE_OPTIONS} ariaLabel="Filter by role" />
+        <Select
+          value={roleFilter}
+          onChange={(v) => {
+            setRoleFilter(v as MemberTrack | "all");
+            setPage(1);
+          }}
+          options={ROLE_OPTIONS}
+          ariaLabel="Filter by role"
+        />
         <Select
           value={categoryFilter}
-          onChange={(v) => setCategoryFilter(v)}
+          onChange={(v) => {
+            setCategoryFilter(v);
+            setPage(1);
+          }}
           options={categoryOptions}
           ariaLabel="Filter by category"
         />
         <Select
           value={priorityFilter}
-          onChange={(v) => setPriorityFilter(v as ReportPriority | "all")}
+          onChange={(v) => {
+            setPriorityFilter(v as ReportPriority | "all");
+            setPage(1);
+          }}
           options={PRIORITY_OPTIONS}
           ariaLabel="Filter by priority"
         />
         <Select
           value={statusFilter}
-          onChange={(v) => setStatusFilter(v as ReportStatus | "all")}
+          onChange={(v) => {
+            setStatusFilter(v as ReportStatus | "all");
+            setPage(1);
+          }}
           options={STATUS_OPTIONS}
           ariaLabel="Filter by status"
         />
@@ -269,7 +298,7 @@ export default function ReportsView({ initialStatus = "all" }: { initialStatus?:
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((report) => {
+                {paginated.map((report) => {
                   const member = membersById[report.memberId];
                   return (
                     <motion.tr
@@ -307,7 +336,7 @@ export default function ReportsView({ initialStatus = "all" }: { initialStatus?:
           </motion.div>
 
           <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
-            {filtered.map((report) => {
+            {paginated.map((report) => {
               const member = membersById[report.memberId];
               return (
                 <motion.div key={report.id} {...hoverLift}>
@@ -339,6 +368,10 @@ export default function ReportsView({ initialStatus = "all" }: { initialStatus?:
                 </motion.div>
               );
             })}
+          </motion.div>
+
+          <motion.div variants={staggerItem}>
+            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
           </motion.div>
         </>
       )}

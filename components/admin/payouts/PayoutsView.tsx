@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/motion";
 import { formatGhs, formatDisplayDate } from "@/lib/formatters";
@@ -9,6 +9,7 @@ import Select from "@/components/admin/Select";
 import DatePicker from "@/components/admin/DatePicker";
 import Modal from "@/components/admin/Modal";
 import EmptyState from "@/components/admin/EmptyState";
+import Pagination from "@/components/admin/Pagination";
 import StatusDot from "@/components/admin/StatusDot";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import ActionsMenu, { type ActionMenuItem } from "@/components/admin/ActionsMenu";
@@ -44,6 +45,8 @@ const SEASON_STATUS_TONE: Record<Season["status"], BadgeTone> = {
   active: "gold",
   ended: "neutral",
 };
+
+const PAGE_SIZE = 10;
 
 function displayStatus(payout: Payout): PayoutStatus {
   return isPayoutLate(payout) ? "late" : payout.status;
@@ -135,6 +138,7 @@ export default function PayoutsView() {
   const [payingPayout, setPayingPayout] = useState<Payout | null>(null);
   const [payAmountInput, setPayAmountInput] = useState("");
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -153,6 +157,13 @@ export default function PayoutsView() {
   }, [session]);
 
   const filtered = statusFilter === "all" ? payouts : payouts.filter((p) => displayStatus(p) === statusFilter);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
 
   function openPayModal(payout: Payout) {
     setPayingPayout(payout);
@@ -296,7 +307,10 @@ export default function PayoutsView() {
           <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
             <Select
               value={statusFilter}
-              onChange={(v) => setStatusFilter(v as PayoutStatus | "all")}
+              onChange={(v) => {
+                setStatusFilter(v as PayoutStatus | "all");
+                setPage(1);
+              }}
               options={[
                 { value: "all", label: "All Statuses" },
                 { value: "scheduled", label: "Scheduled" },
@@ -332,7 +346,7 @@ export default function PayoutsView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((payout) => {
+                    {paginated.map((payout) => {
                       const status = displayStatus(payout);
                       const actions: ActionMenuItem[] =
                         payout.status === "scheduled"
@@ -359,7 +373,7 @@ export default function PayoutsView() {
               </motion.div>
 
               <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
-                {filtered.map((payout) => {
+                {paginated.map((payout) => {
                   const status = displayStatus(payout);
                   const actions: ActionMenuItem[] =
                     payout.status === "scheduled"
@@ -384,6 +398,10 @@ export default function PayoutsView() {
                     </motion.div>
                   );
                 })}
+              </motion.div>
+
+              <motion.div variants={staggerItem}>
+                <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
               </motion.div>
             </>
           )}

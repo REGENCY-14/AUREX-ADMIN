@@ -11,6 +11,7 @@ import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import Select from "@/components/admin/Select";
 import EmptyState from "@/components/admin/EmptyState";
+import Pagination from "@/components/admin/Pagination";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
 import { ArrowUpIcon, ArrowDownIcon, InboxIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
 import { useSession } from "@/lib/auth";
@@ -46,6 +47,8 @@ const STATUS_OPTIONS = [
   { value: "rejected", label: "Rejected" },
 ];
 
+const PAGE_SIZE = 10;
+
 /**
  * The Application Review Queue list. Filter/sort state lives here (client
  * component) since this is a live, interactive list — `applications` is
@@ -62,6 +65,7 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
   const [trackFilter, setTrackFilter] = useState<ApplicationTrack | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">(initialStatus);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -89,6 +93,16 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
       });
   }, [applications, trackFilter, statusFilter, sortDir]);
 
+  // Clamp rather than reset-in-an-effect: keeps the current page as long
+  // as it's still in range, and falls back to the last page once a
+  // filter/sort change shrinks the result set past it.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -104,21 +118,30 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
       <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-3">
         <Select
           value={trackFilter}
-          onChange={(v) => setTrackFilter(v as ApplicationTrack | "all")}
+          onChange={(v) => {
+            setTrackFilter(v as ApplicationTrack | "all");
+            setPage(1);
+          }}
           options={TRACK_OPTIONS}
           ariaLabel="Filter by track"
         />
 
         <Select
           value={statusFilter}
-          onChange={(v) => setStatusFilter(v as ApplicationStatus | "all")}
+          onChange={(v) => {
+            setStatusFilter(v as ApplicationStatus | "all");
+            setPage(1);
+          }}
           options={STATUS_OPTIONS}
           ariaLabel="Filter by status"
         />
 
         <button
           type="button"
-          onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+          onClick={() => {
+            setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+            setPage(1);
+          }}
           className="flex items-center gap-1.5 border border-grid-line bg-panel/60 px-3 py-2 font-sans text-sm text-cream-dim transition-colors hover:text-cream"
         >
           Date {sortDir === "desc" ? <ArrowDownIcon className="size-3" /> : <ArrowUpIcon className="size-3" />}
@@ -179,7 +202,7 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((application) => (
+                {paginated.map((application) => (
                   <motion.tr
                     key={application.id}
                     {...hoverLift}
@@ -207,7 +230,7 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
           </motion.div>
 
           <motion.div variants={staggerItem} className="flex flex-col gap-3 lg:hidden">
-            {filtered.map((application) => (
+            {paginated.map((application) => (
               <motion.div key={application.id} {...hoverLift}>
                 <Link
                   href={`/applications/${application.id}`}
@@ -230,6 +253,10 @@ export default function ApplicationsView({ initialStatus = "all" }: { initialSta
                 </Link>
               </motion.div>
             ))}
+          </motion.div>
+
+          <motion.div variants={staggerItem}>
+            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
           </motion.div>
         </>
       )}
