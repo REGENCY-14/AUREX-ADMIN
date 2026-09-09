@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 
 // Admin sign-ups no longer flow through this queue — see lib/admins.ts
 // and its dedicated /admins endpoints (pending-admin approval now lives
@@ -119,7 +120,12 @@ export async function getApplications(filters: { status?: ApplicationStatus } = 
   const params = new URLSearchParams({ limit: "100" });
   if (filters.status) params.set("status", filters.status);
   try {
-    const { data } = await apiFetchPaginated<ApplicationApiRow>(`/applications?${params.toString()}`);
+    // Cache wraps only the raw request — an error rejects the cached
+    // promise without storing anything, so a failed fetch isn't cached
+    // as an empty result and gets retried next call.
+    const { data } = await cached(`applications:${params.toString()}`, () =>
+      apiFetchPaginated<ApplicationApiRow>(`/applications?${params.toString()}`),
+    );
     return data.map((row) => toApplication(row));
   } catch {
     return [];
@@ -139,7 +145,9 @@ export async function getApplicationById(id: string): Promise<Application | unde
 
 export async function getPendingApplicationCount(): Promise<number> {
   try {
-    const { pagination } = await apiFetchPaginated<ApplicationApiRow>("/applications?status=pending&limit=1");
+    const { pagination } = await cached("applications:count:pending", () =>
+      apiFetchPaginated<ApplicationApiRow>("/applications?status=pending&limit=1"),
+    );
     return pagination.total;
   } catch {
     return 0;
@@ -150,6 +158,9 @@ export async function approveApplication(id: string): Promise<Application> {
   const { data } = await apiFetch<ApplicationApiRow>(`/applications/${id}/approve`, {
     method: "PATCH",
   });
+  // Approval turns the applicant into a registered member.
+  invalidate("applications");
+  invalidate("members");
   return toApplication(data);
 }
 
@@ -158,6 +169,7 @@ export async function rejectApplication(id: string, reason?: string): Promise<Ap
     method: "PATCH",
     body: reason ? { reason } : {},
   });
+  invalidate("applications");
   return toApplication(data);
 }
 

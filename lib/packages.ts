@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 
 export type SlotPackage = "core" | "ventures";
 export type SlotStatus = "pending" | "approved" | "rejected" | "active" | "closed";
@@ -97,7 +98,9 @@ export function canPublishSlot(slot: Pick<InvestmentSlot, "package" | "businessI
 
 export async function fetchAdminPackages(): Promise<InvestmentSlot[]> {
   try {
-    const { data } = await apiFetchPaginated<PackageApiRow>("/packages?limit=100");
+    const { data } = await cached("packages:limit=100", () =>
+      apiFetchPaginated<PackageApiRow>("/packages?limit=100"),
+    );
     return data.map(toInvestmentSlot);
   } catch {
     return [];
@@ -136,34 +139,41 @@ function toPackageBody(input: Partial<PackageInput>): Record<string, unknown> {
 
 export async function createPackage(input: PackageInput): Promise<InvestmentSlot> {
   const { data } = await apiFetch<PackageApiRow>("/packages", { method: "POST", body: toPackageBody(input) });
+  invalidate("packages");
   return toInvestmentSlot(data);
 }
 
 export async function updatePackage(id: string, input: Partial<PackageInput>): Promise<InvestmentSlot> {
   const { data } = await apiFetch<PackageApiRow>(`/packages/${id}`, { method: "PATCH", body: toPackageBody(input) });
+  invalidate("packages");
   return toInvestmentSlot(data);
 }
 
 export async function approvePackage(id: string): Promise<InvestmentSlot> {
   const { data } = await apiFetch<PackageApiRow>(`/packages/${id}/approve`, { method: "PATCH" });
+  invalidate("packages");
   return toInvestmentSlot(data);
 }
 
 export async function rejectPackage(id: string): Promise<InvestmentSlot> {
   const { data } = await apiFetch<PackageApiRow>(`/packages/${id}/reject`, { method: "PATCH" });
+  invalidate("packages");
   return toInvestmentSlot(data);
 }
 
 export async function publishPackage(id: string): Promise<InvestmentSlot> {
   const { data } = await apiFetch<PackageApiRow>(`/packages/${id}/publish`, { method: "PATCH" });
+  invalidate("packages");
   return toInvestmentSlot(data);
 }
 
 export async function closePackageEarly(id: string): Promise<InvestmentSlot> {
   const { data } = await apiFetch<PackageApiRow>(`/packages/${id}/close`, { method: "PATCH" });
+  invalidate("packages");
   return toInvestmentSlot(data);
 }
 
 export async function deletePackage(id: string): Promise<void> {
   await apiFetch(`/packages/${id}`, { method: "DELETE" });
+  invalidate("packages");
 }

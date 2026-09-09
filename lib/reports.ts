@@ -11,6 +11,7 @@
  */
 
 import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 
 export type ReportPriority = "low" | "medium" | "high" | "critical";
 export type ReportStatus = "open" | "in_progress" | "resolved";
@@ -116,7 +117,9 @@ export async function getReports(filters: { status?: ReportStatus } = {}): Promi
   const params = new URLSearchParams({ limit: "100" });
   if (filters.status) params.set("status", filters.status);
   try {
-    const { data } = await apiFetchPaginated<ReportApiRow>(`/reports?${params.toString()}`);
+    const { data } = await cached(`reports:${params.toString()}`, () =>
+      apiFetchPaginated<ReportApiRow>(`/reports?${params.toString()}`),
+    );
     return data.map(toReport);
   } catch {
     return [];
@@ -134,7 +137,9 @@ export async function getReportById(id: string): Promise<Report | undefined> {
 
 export async function getOpenReportCount(): Promise<number> {
   try {
-    const { pagination } = await apiFetchPaginated<ReportApiRow>("/reports?status=open&limit=1");
+    const { pagination } = await cached("reports:count:open", () =>
+      apiFetchPaginated<ReportApiRow>("/reports?status=open&limit=1"),
+    );
     return pagination.total;
   } catch {
     return 0;
@@ -146,5 +151,6 @@ export async function respondToReport(id: string, status: ReportStatus, response
     method: "PATCH",
     body: { status, response },
   });
+  invalidate("reports");
   return toReport(data);
 }

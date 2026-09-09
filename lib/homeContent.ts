@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 
 export type ContentBlockState = "draft" | "published";
 
@@ -33,7 +34,7 @@ function toContentBlock(row: ContentBlockApiRow): ContentBlock {
 
 export async function fetchContentBlocks(): Promise<ContentBlock[]> {
   try {
-    const { data } = await apiFetch<ContentBlockApiRow[]>("/content-blocks");
+    const { data } = await cached("content:", () => apiFetch<ContentBlockApiRow[]>("/content-blocks"));
     return data.map(toContentBlock);
   } catch {
     return [];
@@ -42,6 +43,7 @@ export async function fetchContentBlocks(): Promise<ContentBlock[]> {
 
 export async function createContentBlock(input: { title: string; body: string }): Promise<ContentBlock> {
   const { data } = await apiFetch<ContentBlockApiRow>("/content-blocks", { method: "POST", body: input });
+  invalidate("content");
   return toContentBlock(data);
 }
 
@@ -50,6 +52,7 @@ export async function updateContentBlock(
   input: { title?: string; body?: string; state?: ContentBlockState },
 ): Promise<ContentBlock> {
   const { data } = await apiFetch<ContentBlockApiRow>(`/content-blocks/${id}`, { method: "PATCH", body: input });
+  invalidate("content");
   return toContentBlock(data);
 }
 
@@ -58,9 +61,11 @@ export async function moveContentBlock(id: string, direction: "up" | "down"): Pr
     method: "PATCH",
     body: { direction },
   });
+  invalidate("content");
   return data.map(toContentBlock);
 }
 
 export async function deleteContentBlock(id: string): Promise<void> {
   await apiFetch(`/content-blocks/${id}`, { method: "DELETE" });
+  invalidate("content");
 }

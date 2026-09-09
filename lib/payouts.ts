@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 
 export type PayoutStatus = "scheduled" | "paid" | "missed" | "late";
 
@@ -50,7 +51,9 @@ export async function fetchPayouts(filters: { status?: PayoutStatus } = {}): Pro
   const params = new URLSearchParams({ limit: "100" });
   if (filters.status) params.set("status", filters.status);
   try {
-    const { data } = await apiFetchPaginated<PayoutApiRow>(`/payouts?${params.toString()}`);
+    const { data } = await cached(`payouts:${params.toString()}`, () =>
+      apiFetchPaginated<PayoutApiRow>(`/payouts?${params.toString()}`),
+    );
     return data.map(toPayout);
   } catch {
     return [];
@@ -62,11 +65,13 @@ export async function markPayoutPaid(id: string, amountGhs?: number): Promise<Pa
     method: "PATCH",
     body: amountGhs !== undefined ? { amount: amountGhs } : {},
   });
+  invalidate("payouts");
   return toPayout(data);
 }
 
 export async function markPayoutMissed(id: string): Promise<Payout> {
   const { data } = await apiFetch<PayoutApiRow>(`/payouts/${id}/missed`, { method: "PATCH" });
+  invalidate("payouts");
   return toPayout(data);
 }
 

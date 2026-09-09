@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 
 export type SeasonStatus = "draft" | "active" | "ended";
 
@@ -24,7 +25,7 @@ function toSeason(row: SeasonApiRow): Season {
 
 export async function fetchSeasons(): Promise<Season[]> {
   try {
-    const { data } = await apiFetch<SeasonApiRow[]>("/seasons");
+    const { data } = await cached("seasons:", () => apiFetch<SeasonApiRow[]>("/seasons"));
     return data.map(toSeason);
   } catch {
     return [];
@@ -36,15 +37,18 @@ export async function createSeason(input: { name: string; startDate: string; end
     method: "POST",
     body: { name: input.name, start_date: input.startDate, end_date: input.endDate },
   });
+  invalidate("seasons");
   return toSeason(data);
 }
 
 export async function activateSeason(id: string): Promise<Season> {
   const { data } = await apiFetch<SeasonApiRow>(`/seasons/${id}/activate`, { method: "PATCH" });
+  invalidate("seasons");
   return toSeason(data);
 }
 
 export async function endSeason(id: string): Promise<Season> {
   const { data } = await apiFetch<SeasonApiRow>(`/seasons/${id}/end`, { method: "PATCH" });
+  invalidate("seasons");
   return toSeason(data);
 }

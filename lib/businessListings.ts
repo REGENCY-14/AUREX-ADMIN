@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 
 export type ListingStatus = "pending" | "live" | "funded" | "closed";
 
@@ -67,7 +68,7 @@ function toBusinessListing(row: ListingApiRow): BusinessListing {
 
 export async function fetchBusinessListings(): Promise<BusinessListing[]> {
   try {
-    const { data } = await apiFetch<ListingApiRow[]>("/businesses/listings");
+    const { data } = await cached("listings:", () => apiFetch<ListingApiRow[]>("/businesses/listings"));
     return data.map(toBusinessListing);
   } catch {
     return [];
@@ -82,6 +83,7 @@ export async function updateBusinessListing(
     method: "PATCH",
     body: { description: params.description, funding_purpose: params.fundingPurpose },
   });
+  invalidate("listings");
   return toBusinessListing(data);
 }
 

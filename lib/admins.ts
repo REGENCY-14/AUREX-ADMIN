@@ -8,6 +8,7 @@
  */
 
 import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 
 export type AdminStatus = "pending" | "active" | "suspended" | "rejected";
 
@@ -97,7 +98,9 @@ export async function fetchAdmins(filters: { status?: AdminStatus } = {}): Promi
   const params = new URLSearchParams({ limit: "100" });
   if (filters.status) params.set("status", filters.status);
   try {
-    const { data } = await apiFetchPaginated<AdminListApiRow>(`/admins?${params.toString()}`);
+    const { data } = await cached(`admins:${params.toString()}`, () =>
+      apiFetchPaginated<AdminListApiRow>(`/admins?${params.toString()}`),
+    );
     return data.map(toAdmin);
   } catch {
     return [];
@@ -106,7 +109,9 @@ export async function fetchAdmins(filters: { status?: AdminStatus } = {}): Promi
 
 export async function getPendingAdminCount(): Promise<number> {
   try {
-    const { pagination } = await apiFetchPaginated<AdminListApiRow>("/admins?status=pending&limit=1");
+    const { pagination } = await cached("admins:count:pending", () =>
+      apiFetchPaginated<AdminListApiRow>("/admins?status=pending&limit=1"),
+    );
     return pagination.total;
   } catch {
     return 0;
@@ -126,8 +131,10 @@ export async function fetchAdminById(id: string): Promise<AdminDetail | undefine
 
 export async function approveAdmin(id: string): Promise<void> {
   await apiFetch(`/admins/${id}/approve`, { method: "PATCH" });
+  invalidate("admins");
 }
 
 export async function rejectAdmin(id: string): Promise<void> {
   await apiFetch(`/admins/${id}/reject`, { method: "PATCH" });
+  invalidate("admins");
 }

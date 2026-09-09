@@ -9,6 +9,7 @@
  */
 
 import { apiFetch, apiFetchPaginated } from "@/lib/api/client";
+import { cached } from "@/lib/cache";
 
 export type MemberTrack = "investor" | "business";
 export type MemberStatus = "active" | "suspended";
@@ -190,7 +191,9 @@ export async function fetchMembers(filters: { track?: MemberTrack } = {}): Promi
   const params = new URLSearchParams({ limit: "100" });
   if (filters.track) params.set("track", filters.track);
   try {
-    const { data } = await apiFetchPaginated<MemberApiRow>(`/members?${params.toString()}`);
+    const { data } = await cached(`members:${params.toString()}`, () =>
+      apiFetchPaginated<MemberApiRow>(`/members?${params.toString()}`),
+    );
     return data.map(toMember);
   } catch {
     return [];

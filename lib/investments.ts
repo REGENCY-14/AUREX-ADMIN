@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchPaginated, apiUpload } from "@/lib/api/client";
+import { cached, invalidate } from "@/lib/cache";
 import type { SlotPackage } from "@/lib/packages";
 
 export type InvestmentStatus = "pending_payment" | "active" | "matured";
@@ -48,7 +49,9 @@ export async function fetchInvestments(filters: { memberId?: string } = {}): Pro
   const params = new URLSearchParams({ limit: "100" });
   if (filters.memberId) params.set("user_id", filters.memberId);
   try {
-    const { data } = await apiFetchPaginated<InvestmentApiRow>(`/investments?${params.toString()}`);
+    const { data } = await cached(`investments:${params.toString()}`, () =>
+      apiFetchPaginated<InvestmentApiRow>(`/investments?${params.toString()}`),
+    );
     return data.map(toInvestmentRecord);
   } catch {
     return [];
@@ -78,14 +81,23 @@ export async function recordInvestment(input: RecordInvestmentInput): Promise<In
   if (input.proofOfPayment) formData.set("proof_of_payment", input.proofOfPayment);
 
   const { data } = await apiUpload<InvestmentApiRow>("/investments", formData);
+  // Recording an investment can also generate its schedule of payouts
+  // server-side once it activates.
+  invalidate("investments");
+  invalidate("payouts");
   return toInvestmentRecord(data);
 }
+
+// Note: "investments:" as a prefix also covers "investments:stats" —
+// invalidate("investments") above already clears both the list and the
+// stats cached above.
 
 export async function updateEarnings(id: string, currentValueGhs: number): Promise<InvestmentRecord> {
   const { data } = await apiFetch<InvestmentApiRow>(`/investments/${id}/value`, {
     method: "PATCH",
     body: { current_value: currentValueGhs },
   });
+  invalidate("investments");
   return toInvestmentRecord(data);
 }
 
@@ -98,9 +110,13 @@ type InvestmentStatsApiResponse = {
   monthlyTrend: { month: string; cumulativeAmount: string }[];
 };
 
+function fetchInvestmentStats(): Promise<{ success: true; data: InvestmentStatsApiResponse }> {
+  return cached("investments:stats", () => apiFetch<InvestmentStatsApiResponse>("/investments/stats"));
+}
+
 export async function fetchTotalPlatformInvested(): Promise<number> {
   try {
-    const { data } = await apiFetch<InvestmentStatsApiResponse>("/investments/stats");
+    const { data } = await fetchInvestmentStats();
     return Number(data.totalPlatformInvested);
   } catch {
     return 0;
@@ -109,7 +125,7 @@ export async function fetchTotalPlatformInvested(): Promise<number> {
 
 export async function fetchInvestedByPackage(): Promise<PackageAllocation> {
   try {
-    const { data } = await apiFetch<InvestmentStatsApiResponse>("/investments/stats");
+    const { data } = await fetchInvestmentStats();
     return { core: Number(data.byPackageType.core ?? 0), ventures: Number(data.byPackageType.ventures ?? 0) };
   } catch {
     return { core: 0, ventures: 0 };
@@ -118,7 +134,7 @@ export async function fetchInvestedByPackage(): Promise<PackageAllocation> {
 
 export async function fetchMonthlyInvestedTrend(): Promise<MonthlyInvestedPoint[]> {
   try {
-    const { data } = await apiFetch<InvestmentStatsApiResponse>("/investments/stats");
+    const { data } = await fetchInvestmentStats();
     return data.monthlyTrend.map((point) => {
       const [year, month] = point.month.split("-").map(Number);
       const label = new Date(year, month - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
