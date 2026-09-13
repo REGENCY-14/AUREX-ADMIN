@@ -4,17 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { staggerContainer, staggerItem, hoverLift } from "@/lib/motion";
+import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/motion";
 import { formatDisplayDate } from "@/lib/formatters";
 import PageHeader from "@/components/admin/PageHeader";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
 import StatusDot from "@/components/admin/StatusDot";
 import EmptyState from "@/components/admin/EmptyState";
 import Pagination from "@/components/admin/Pagination";
+import Modal from "@/components/admin/Modal";
+import MemberForm from "@/components/admin/members/MemberForm";
 import { AVATAR_CLASSNAME, DANGER_ROW_CLASSNAME, handleRowClick } from "@/components/admin/tableStyles";
-import { SearchIcon, SpinnerIcon, UsersIcon } from "@/components/icons";
+import { PlusIcon, SearchIcon, SpinnerIcon, UsersIcon } from "@/components/icons";
 import { useSession } from "@/lib/auth";
-import { fetchMembers, type Member, type MemberStatus, type MemberTrack } from "@/lib/members";
+import { createMember, fetchMembers, type Member, type MemberStatus, type MemberTrack, type NewMemberInput } from "@/lib/members";
 
 const STATUS_TONE: Record<MemberStatus, BadgeTone> = {
   active: "gold",
@@ -35,6 +37,8 @@ export default function MembersView() {
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -65,6 +69,14 @@ export default function MembersView() {
     [filtered, currentPage],
   );
 
+  async function handleAddInvestor(input: NewMemberInput) {
+    const created = createMember(input);
+    setMembers((prev) => [created, ...prev]);
+    setPage(1);
+    setBanner(`${created.nickname} added as an investor.`);
+    setIsAddModalOpen(false);
+  }
+
   return (
     <motion.div
       variants={staggerContainer}
@@ -72,7 +84,26 @@ export default function MembersView() {
       animate="animate"
       className="flex flex-1 flex-col gap-6 px-4 py-8 sm:px-6 lg:px-10"
     >
-      <PageHeader title="Member Management" description="Every registered AUREX member, investor and business owner alike." />
+      <PageHeader
+        title="Member Management"
+        description="Every registered AUREX member, investor and business owner alike."
+        action={
+          <motion.button
+            {...hoverScale}
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-gold via-gold-light via-50% to-gold px-4 py-2.5 font-jakarta text-sm font-medium text-amainblack"
+          >
+            <PlusIcon className="size-3.5" /> Add Investor
+          </motion.button>
+        }
+      />
+
+      {banner && (
+        <motion.div variants={staggerItem} className="border border-gold/30 bg-gold/5 p-4 font-sans text-sm text-cream-dim">
+          {banner}
+        </motion.div>
+      )}
 
       <motion.div variants={staggerItem} className="relative w-full max-w-sm">
         <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-cream-dim" />
@@ -190,6 +221,15 @@ export default function MembersView() {
           </motion.div>
         </>
       )}
+
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add Investor"
+        description="Registers a new investor directly, without needing a business to go with them."
+      >
+        <MemberForm onSubmit={handleAddInvestor} />
+      </Modal>
     </motion.div>
   );
 }
