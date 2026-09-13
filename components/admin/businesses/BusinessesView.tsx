@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, hoverLift, hoverScale } from "@/lib/motion";
 import { formatGhs, formatDisplayDate } from "@/lib/formatters";
@@ -11,19 +13,12 @@ import Pagination from "@/components/admin/Pagination";
 import StatusDot from "@/components/admin/StatusDot";
 import Select from "@/components/admin/Select";
 import { type BadgeTone } from "@/components/admin/StatusBadge";
-import { iconButtonClassName } from "@/components/admin/tableStyles";
+import { handleRowClick } from "@/components/admin/tableStyles";
 import BusinessForm from "@/components/admin/businesses/BusinessForm";
-import ListingForm, { type ListingFormValues } from "@/components/admin/listings/ListingForm";
-import { BriefcaseIcon, PencilIcon, PlusIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
-import {
-  getAllBusinesses,
-  createBusiness,
-  type Business,
-  type CreateBusinessInput,
-} from "@/lib/businesses";
-import { LISTING_STATUS_LABEL, getFundingPercent, updateBusinessListing, type ListingStatus } from "@/lib/businessListings";
+import { BriefcaseIcon, PlusIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
+import { getAllBusinesses, createBusiness, type Business, type CreateBusinessInput } from "@/lib/businesses";
+import { LISTING_STATUS_LABEL, getFundingPercent, type ListingStatus } from "@/lib/businessListings";
 import { getMembers } from "@/lib/members";
-import { ApiError } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 
 const PAGE_SIZE = 10;
@@ -54,14 +49,16 @@ function statusOf(business: Business): { label: string; tone: BadgeTone; filterV
  * approval pipeline and has a real funding listing (lib/businessListings.ts)
  * behind it. Merges what used to be two separate pages/nav entries
  * ("Businesses" and "Business Listings") into one, via
- * lib/businesses.ts#getAllBusinesses.
+ * lib/businesses.ts#getAllBusinesses. Click a row to open its detail
+ * page (app/(admin)/businesses/[id]) — status, funding, and every other
+ * field are managed there, same as the Members page's own detail view.
  */
 export default function BusinessesView({ initialStatus = "all" }: { initialStatus?: StatusFilter }) {
+  const router = useRouter();
   const { session } = useSession();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [banner, setBanner] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -102,18 +99,6 @@ export default function BusinessesView({ initialStatus = "all" }: { initialStatu
     setIsModalOpen(false);
   }
 
-  async function handleSaveListing(values: ListingFormValues) {
-    if (!editingBusiness?.listing) return;
-    try {
-      const updated = await updateBusinessListing(editingBusiness.listing.id, values);
-      setBusinesses((prev) => prev.map((b) => (b.listing?.id === updated.id ? { ...b, description: updated.description, listing: updated } : b)));
-      setBanner(`${updated.businessName} updated.`);
-      setEditingBusiness(null);
-    } catch (err) {
-      setBanner(err instanceof ApiError ? err.message : "Failed to update listing.");
-    }
-  }
-
   return (
     <motion.div
       variants={staggerContainer}
@@ -123,7 +108,7 @@ export default function BusinessesView({ initialStatus = "all" }: { initialStatu
     >
       <PageHeader
         title="Businesses"
-        description="Every business AUREX knows about — self-added, member-owned, or raising funds as a published listing."
+        description="Every business AUREX knows about — self-added, member-owned, or raising funds as a published listing. Click one to manage it."
         action={
           <motion.button
             {...hoverScale}
@@ -211,17 +196,23 @@ export default function BusinessesView({ initialStatus = "all" }: { initialStatu
                       <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Status</th>
                       <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Funding</th>
                       <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Added</th>
-                      <th className="px-4 py-3 font-sans text-xs font-medium uppercase tracking-wide text-cream-dim">Edit</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginated.map((business) => {
                       const status = statusOf(business);
                       return (
-                        <motion.tr key={business.id} {...hoverLift} className="border-b border-grid-line last:border-b-0 hover:bg-panel/30">
-                          <td className="px-4 py-3 font-jakarta text-sm font-medium text-cream">
-                            {business.name}
-                            {business.category && <span className="ml-2 font-sans text-xs text-cream-dim">{business.category}</span>}
+                        <motion.tr
+                          key={business.id}
+                          {...hoverLift}
+                          onClick={handleRowClick(router, `/businesses/${business.id}`)}
+                          className="cursor-pointer border-b border-grid-line last:border-b-0 hover:bg-panel/30"
+                        >
+                          <td className="p-0">
+                            <Link href={`/businesses/${business.id}`} className="flex flex-col gap-0.5 px-4 py-3">
+                              <span className="font-jakarta text-sm font-medium text-cream">{business.name}</span>
+                              {business.category && <span className="font-sans text-xs text-cream-dim">{business.category}</span>}
+                            </Link>
                           </td>
                           <td className="px-4 py-3 font-sans text-sm text-cream-dim">{ownerLabel(business)}</td>
                           <td className="px-4 py-3">
@@ -235,18 +226,6 @@ export default function BusinessesView({ initialStatus = "all" }: { initialStatu
                           <td className="px-4 py-3 font-sans text-sm text-cream-dim">
                             {business.createdAt ? formatDisplayDate(business.createdAt) : "—"}
                           </td>
-                          <td className="px-4 py-3">
-                            {business.listing && (
-                              <button
-                                type="button"
-                                onClick={() => setEditingBusiness(business)}
-                                aria-label={`Edit ${business.name}`}
-                                className={iconButtonClassName("gold")}
-                              >
-                                <PencilIcon className="size-3.5" />
-                              </button>
-                            )}
-                          </td>
                         </motion.tr>
                       );
                     })}
@@ -258,32 +237,24 @@ export default function BusinessesView({ initialStatus = "all" }: { initialStatu
                 {paginated.map((business) => {
                   const status = statusOf(business);
                   return (
-                    <motion.div key={business.id} {...hoverLift} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="font-jakarta text-sm font-semibold text-cream">{business.name}</span>
-                        <StatusDot label={status.label} tone={status.tone} />
-                      </div>
-                      <span className="font-sans text-xs text-cream-dim">
-                        {ownerLabel(business)}
-                        {business.category ? ` · ${business.category}` : ""}
-                        {business.createdAt ? ` · Added ${formatDisplayDate(business.createdAt)}` : ""}
-                      </span>
-                      {business.listing && (
+                    <motion.div key={business.id} {...hoverLift}>
+                      <Link href={`/businesses/${business.id}`} className="flex flex-col gap-2 border border-grid-line bg-panel/20 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="font-jakarta text-sm font-semibold text-cream">{business.name}</span>
+                          <StatusDot label={status.label} tone={status.tone} />
+                        </div>
                         <span className="font-sans text-xs text-cream-dim">
-                          {formatGhs(business.listing.amountRaisedGhs)} raised of {formatGhs(business.listing.fundingGoalGhs)} (
-                          {getFundingPercent(business.listing)}%)
+                          {ownerLabel(business)}
+                          {business.category ? ` · ${business.category}` : ""}
+                          {business.createdAt ? ` · Added ${formatDisplayDate(business.createdAt)}` : ""}
                         </span>
-                      )}
-                      {business.listing && (
-                        <button
-                          type="button"
-                          onClick={() => setEditingBusiness(business)}
-                          aria-label={`Edit ${business.name}`}
-                          className={`mt-1 w-fit ${iconButtonClassName("gold")}`}
-                        >
-                          <PencilIcon className="size-3.5" />
-                        </button>
-                      )}
+                        {business.listing && (
+                          <span className="font-sans text-xs text-cream-dim">
+                            {formatGhs(business.listing.amountRaisedGhs)} raised of {formatGhs(business.listing.fundingGoalGhs)} (
+                            {getFundingPercent(business.listing)}%)
+                          </span>
+                        )}
+                      </Link>
                     </motion.div>
                   );
                 })}
@@ -302,16 +273,6 @@ export default function BusinessesView({ initialStatus = "all" }: { initialStatu
         description="It can be AUREX's own business, or added on behalf of a member — existing or brand new."
       >
         <BusinessForm members={members} onSubmit={handleCreate} />
-      </Modal>
-
-      <Modal
-        isOpen={editingBusiness !== null}
-        onClose={() => setEditingBusiness(null)}
-        title={editingBusiness ? `Edit ${editingBusiness.name}` : ""}
-      >
-        {editingBusiness?.listing && (
-          <ListingForm listing={editingBusiness.listing} onCancel={() => setEditingBusiness(null)} onSave={handleSaveListing} />
-        )}
       </Modal>
     </motion.div>
   );

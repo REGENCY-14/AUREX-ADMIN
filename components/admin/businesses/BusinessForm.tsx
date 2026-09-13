@@ -13,7 +13,7 @@ const INPUT_CLASSNAME =
 const LABEL_CLASSNAME = "flex flex-col gap-1.5";
 const LABEL_TEXT_CLASSNAME = "font-sans text-xs uppercase tracking-wide text-cream-dim";
 
-const CATEGORY_OPTIONS = [
+export const CATEGORY_OPTIONS = [
   { value: "", label: "Select a category" },
   { value: "Agriculture", label: "Agriculture" },
   { value: "Logistics", label: "Logistics" },
