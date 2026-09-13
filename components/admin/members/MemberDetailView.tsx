@@ -177,7 +177,7 @@ export default function MemberDetailView({ id }: { id: string }) {
                 {listing.backerCount} backers
               </p>
               <Link
-                href={`/listings/${listing.id}`}
+                href={`/businesses/${listing.id}`}
                 className="flex w-fit items-center gap-1.5 font-jakarta text-sm font-medium text-gold-bright underline-offset-4 transition-colors hover:text-gold-light hover:underline"
               >
                 View Listing

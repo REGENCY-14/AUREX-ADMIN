@@ -88,6 +88,31 @@ export async function getAllBusinesses(): Promise<Business[]> {
   return [...BUSINESSES, ...listings.map(fromListing)];
 }
 
+/** Single business for the detail page — checks the admin-added mock
+ *  list first, then falls back to the real business listings (their ids
+ *  don't overlap, so order doesn't matter for correctness, just for
+ *  which fetch is skipped when possible). */
+export async function getBusinessById(id: string): Promise<Business | undefined> {
+  const adminAdded = BUSINESSES.find((b) => b.id === id);
+  if (adminAdded) return adminAdded;
+  const listings = await fetchBusinessListings();
+  const listing = listings.find((l) => l.id === id);
+  return listing ? fromListing(listing) : undefined;
+}
+
+export type UpdateAdminBusinessInput = { name: string; category: string; description: string };
+
+/** Edits an admin-added business's own fields (name/category/description
+ *  — not its owner, set once at creation). Application-sourced rows
+ *  aren't editable here — see lib/businessListings.ts#updateBusinessListing
+ *  for those, which the detail page calls directly instead. */
+export function updateAdminBusiness(id: string, input: UpdateAdminBusinessInput): Business | undefined {
+  const business = BUSINESSES.find((b) => b.id === id);
+  if (!business) return undefined;
+  Object.assign(business, input);
+  return business;
+}
+
 export function createBusiness(input: CreateBusinessInput): Business {
   let owner: Member | undefined;
   if (input.ownerType === "member") {
