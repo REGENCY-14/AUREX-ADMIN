@@ -1,16 +1,16 @@
-import type { Metadata } from "next";
-import ListingsView from "@/components/admin/listings/ListingsView";
-import type { ListingStatus } from "@/lib/businessListings";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Business Listings | AUREX Admin",
-};
-
-const VALID_STATUSES: ListingStatus[] = ["pending", "live", "funded", "closed"];
-
-export default async function ListingsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  const { status } = await searchParams;
-  const initialStatus = (VALID_STATUSES as string[]).includes(status ?? "") ? (status as ListingStatus) : "all";
-
-  return <ListingsView initialStatus={initialStatus} />;
+/**
+ * "Business Listings" merged into the "Businesses" page (see
+ * app/(admin)/businesses/page.tsx and lib/businesses.ts#getAllBusinesses)
+ * — a listing is just the funding side of a business, and admins now
+ * manage both from one place. This route stays only so existing deep
+ * links (the Overview dashboard's "Live Business Listings" stat card,
+ * any bookmarks) keep working; `status=live` etc. map 1:1 onto the
+ * merged page's own status filter.
+ */
+export default async function ListingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const params = new URLSearchParams(await searchParams as Record<string, string>);
+  const query = params.toString();
+  redirect(`/businesses${query ? `?${query}` : ""}`);
 }

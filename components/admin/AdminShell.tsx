@@ -47,7 +47,6 @@ const NAV_LINKS: NavLink[] = [
   { label: "Investment Slots", href: "/slots", icon: LayersIcon },
   { label: "Record Investment", href: "/investments", icon: CoinsIcon },
   { label: "Payouts", href: "/payouts", icon: CalendarIcon },
-  { label: "Business Listings", href: "/listings", icon: BriefcaseIcon },
   { label: "Home Content", href: "/content", icon: MegaphoneIcon },
   { label: "Reports", href: "/reports", icon: BookIcon, badgeKey: "openReports" },
 ];

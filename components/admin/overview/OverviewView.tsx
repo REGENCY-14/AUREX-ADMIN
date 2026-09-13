@@ -133,7 +133,7 @@ export default function OverviewView({ stats }: { stats: OverviewStats }) {
           <StatCard
             label="Live Business Listings"
             value={String(liveListingCount)}
-            href="/listings?status=live"
+            href="/businesses?status=live"
             sublabel="Raising funds now"
             icon={BriefcaseIcon}
           />
