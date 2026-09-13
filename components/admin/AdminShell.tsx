@@ -43,6 +43,7 @@ const NAV_LINKS: NavLink[] = [
   { label: "Applications", href: "/applications", icon: InboxIcon, badgeKey: "pendingApplications" },
   { label: "Members", href: "/members", icon: UsersIcon },
   { label: "Admins", href: "/admins", icon: UserIcon },
+  { label: "Businesses", href: "/businesses", icon: BriefcaseIcon },
   { label: "Investment Slots", href: "/slots", icon: LayersIcon },
   { label: "Record Investment", href: "/investments", icon: CoinsIcon },
   { label: "Payouts", href: "/payouts", icon: CalendarIcon },
