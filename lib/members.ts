@@ -158,6 +158,36 @@ export function getActiveInvestors(): Member[] {
   return MEMBERS.filter((m) => m.track === "investor" && m.status === "active");
 }
 
+export type NewMemberInput = {
+  nickname: string;
+  realName: string;
+  email: string;
+  phone: string;
+  country: string;
+  track: MemberTrack;
+};
+
+/** Mock member creation for the Add Business flow (see lib/businesses.ts)
+ *  — pushes onto the same in-memory MEMBERS array getMembers() reads, so
+ *  a member created here immediately counts toward getMembers()-backed
+ *  stats (e.g. the Overview dashboard). No backend endpoint exists yet;
+ *  swap for a real POST /members call once one does. */
+export function createMember(input: NewMemberInput): Member {
+  const member: Member = {
+    id: `mem-${Date.now()}`,
+    nickname: input.nickname,
+    realName: input.realName,
+    track: input.track,
+    email: input.email,
+    phone: input.phone,
+    country: input.country,
+    joinDate: new Date().toISOString().slice(0, 10),
+    status: "active",
+  };
+  MEMBERS.push(member);
+  return member;
+}
+
 type MemberApiRow = {
   id: string;
   nickname: string | null;
